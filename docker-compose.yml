@@ -1,13 +1,13 @@
 services:
   postgres:
     image: postgres:15
-    container_name: bando-db
+    container_name: banco-db
     ports:
       - 5432:5432
     environment:
-      POSTGRES_USER: banco_db
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: password
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: banco_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

@@ -6,7 +6,7 @@ import java.io.Serializable;
 
 public record ClaimDTO(
     UUID id,
-    String custormerId,
+    String customerId,
     String message,
     String status,
     String category

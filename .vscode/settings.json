@@ -1,3 +1,7 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "python.defaultInterpreterPath": "${workspaceFolder}/ai-brain-python/venv/bin/python3",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/ai-brain-python/venv/lib/python3.12/site-packages"
+    ]
 }
