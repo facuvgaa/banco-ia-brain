@@ -27,6 +27,8 @@ public class ClaimEntity {
     @Column(nullable = false)
     private String status;
 
+
+    @Column(columnDefinition = "TEXT")
     private String category;
 
     @Column(updatable = false)
@@ -39,4 +41,9 @@ public class ClaimEntity {
             this.id = UUID.randomUUID();
         }
     }
+
+    @Column(columnDefinition = "TEXT") 
+    private String resolution;
+
+    
 }
