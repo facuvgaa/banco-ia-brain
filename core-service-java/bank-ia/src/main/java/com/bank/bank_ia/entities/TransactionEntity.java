@@ -35,6 +35,9 @@ public class TransactionEntity {
     private String status;
 
     @Column(nullable = false)
+    private String coelsaId;
+
+    @Column(nullable = false)
     private LocalDateTime transactionDate;
 
     @Column(nullable = false)

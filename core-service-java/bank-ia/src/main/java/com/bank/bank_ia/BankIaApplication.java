@@ -29,6 +29,7 @@ public class BankIaApplication {
                         .amount(new BigDecimal("55000.00"))
                         .currency("ARS")
                         .status("FAILED")
+                        .coelsaId("COELSA-001")
                         .transactionDate(LocalDateTime.now().minusHours(2))
                         .description("Transferencia enviada a CBU 00000234...")
                         .build()));
@@ -41,6 +42,17 @@ public class BankIaApplication {
                         .status("COMPLETED")
                         .transactionDate(LocalDateTime.now().minusDays(1))
                         .description("Compra en Supermercado")
+                        .build()));
+
+                // Registro 3: Ejemplo basado en comprobante de $517.759,00
+                repository.save(Objects.requireNonNull(TransactionEntity.builder()
+                        .customerId("BERNARDO-001")
+                        .amount(new BigDecimal("517759.00"))
+                        .currency("ARS")
+                        .status("FAILED") // Simulamos que falló pero tiene código
+                        .transactionDate(LocalDateTime.now().minusHours(5))
+                        .description("Transferencia a Holding Srl")
+                        .coelsaId("LMORZP891OOMGF22EGJ568") // <-- El código del comprobante
                         .build()));
 
                 System.out.println("✅ Datos de prueba de transacciones insertados en Postgres.");

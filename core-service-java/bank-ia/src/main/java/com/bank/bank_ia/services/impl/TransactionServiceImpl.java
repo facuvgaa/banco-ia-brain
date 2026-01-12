@@ -26,6 +26,7 @@ public class TransactionServiceImpl implements TransactionService{
             entity.getAmount(), 
             entity.getCurrency(),
             entity.getStatus(),
+            entity.getCoelsaId(),
             entity.getTransactionDate(),
             entity.getDescription()
         ))

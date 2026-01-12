@@ -9,6 +9,7 @@ public record TransactionDTO(
     BigDecimal amount,
     String currency,
     String status,
+    String coelsaId,
     LocalDateTime transactionDate,
     String description
 ) {}
