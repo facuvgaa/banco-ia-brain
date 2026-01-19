@@ -45,17 +45,25 @@ try:
         claim_data = json.loads(msg.value().decode('utf-8'))
         claim_id = claim_data['id']
         message = claim_data['message']
+        customer_id = claim_data.get('customerId') or claim_data.get('clientId') or 'UNKNOWN'
         
         print(f"\n📩 Recibido reclamo {claim_id}: '{message}'")
+        print(f"👤 Customer ID: {customer_id}")
 
         triage_result = triage_manager.process_claim(message)
         
         if triage_result.decision == "ESCALATE":
             print(f"⚠️  Triage: ESCALANDO (Razón: {triage_result.reason})")
             
-            brain_response = brain_manager.solve_complex_claim(message, triage_result.reason)
-            # Enviamos la respuesta del Brain
-            send_resolution_to_kafka(claim_id, brain_response.content, "ESCALATED")
+            try:
+                brain_response = brain_manager.solve_complex_claim(message, customer_id, triage_result.reason)
+                # Enviamos la respuesta del Brain
+                send_resolution_to_kafka(claim_id, brain_response.content, "ESCALATED")
+            except Exception as e:
+                print(f"❌ Error al procesar con Brain: {e}")
+                # Enviamos un mensaje de error a Kafka
+                error_message = f"Error al procesar reclamo: {str(e)}. Por favor, contacte con soporte."
+                send_resolution_to_kafka(claim_id, error_message, "ERROR")
             
         else:
             print(f"✅ Triage: RESOLVIENDO directamente.")

@@ -40,6 +40,7 @@ public class BankIaApplication {
                         .amount(new BigDecimal("4500.00"))
                         .currency("ARS")
                         .status("COMPLETED")
+                        .coelsaId("COELSA-002")
                         .transactionDate(LocalDateTime.now().minusDays(1))
                         .description("Compra en Supermercado")
                         .build()));

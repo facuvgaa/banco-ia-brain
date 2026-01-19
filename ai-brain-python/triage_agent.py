@@ -1,9 +1,9 @@
-from agents_config import get_triage_agent
+from agents_config import get_triangle_agent
 from schemas import TriageResult 
 
 class TriageManager:
     def __init__(self):
-        self.model = get_triage_agent().with_structured_output(TriageResult)
+        self.model = get_triangle_agent().with_structured_output(TriageResult)
 
     def process_claim(self, text):
         prompt = [
