@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bank.bank_ia.dto.ClaimDTO;
 import com.bank.bank_ia.dto.TransactionDTO;
 import com.bank.bank_ia.services.ClaimService;
+import com.bank.bank_ia.services.LoanService;
+import com.bank.bank_ia.dto.LoanDTO;
 import com.bank.bank_ia.services.TransactionService;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,9 @@ public class ClaimController {
 
     private final ClaimService claimService;
     private final TransactionService transactionService;
+    private final LoanService loanService;
+
+
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
         @RequestBody ClaimRequest claimDTO) 
@@ -41,6 +46,11 @@ public class ClaimController {
     @GetMapping("/claims/{id}")
     public ResponseEntity<ClaimDTO> getClaimById(@PathVariable UUID id) {
         return ResponseEntity.ok(claimService.getClaimById(id));
+    }
+    @GetMapping("/loans/{customerId}")
+    public ResponseEntity<List<LoanDTO>> getCustomerLoans(@PathVariable String customerId){
+        List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
+        return ResponseEntity.ok(loans);
     }
     @GetMapping("/transactions/{customerId}")
         public ResponseEntity<List<TransactionDTO>> getCustomerTransactions(@PathVariable String customerId){
