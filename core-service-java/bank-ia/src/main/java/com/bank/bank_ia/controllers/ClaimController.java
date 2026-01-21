@@ -16,7 +16,9 @@ import com.bank.bank_ia.dto.ClaimDTO;
 import com.bank.bank_ia.dto.TransactionDTO;
 import com.bank.bank_ia.services.ClaimService;
 import com.bank.bank_ia.services.LoanService;
+import com.bank.bank_ia.services.RefinanceService;
 import com.bank.bank_ia.dto.LoanDTO;
+import com.bank.bank_ia.dto.RefinanceDTO;
 import com.bank.bank_ia.services.TransactionService;
 
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,7 @@ public class ClaimController {
     private final ClaimService claimService;
     private final TransactionService transactionService;
     private final LoanService loanService;
-
+    private final RefinanceService refinanceService;
 
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
@@ -51,6 +53,11 @@ public class ClaimController {
     public ResponseEntity<List<LoanDTO>> getCustomerLoans(@PathVariable String customerId){
         List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
         return ResponseEntity.ok(loans);
+    }
+    @GetMapping("/refinances/{customerId}")
+    public ResponseEntity<List<RefinanceDTO>> getCustomerRefinances(@PathVariable String customerId){
+        List<RefinanceDTO> refinances = refinanceService.getRefinancesByLoadNumber(customerId);
+        return ResponseEntity.ok(refinances);
     }
     @GetMapping("/transactions/{customerId}")
         public ResponseEntity<List<TransactionDTO>> getCustomerTransactions(@PathVariable String customerId){
