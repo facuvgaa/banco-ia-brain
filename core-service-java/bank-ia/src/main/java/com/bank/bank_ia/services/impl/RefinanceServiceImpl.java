@@ -18,16 +18,17 @@ public class RefinanceServiceImpl implements RefinanceService {
     
     @Override 
     public List<RefinanceDTO> getRefinancesByLoadNumber(String customerId) {
-        return refinanceRepository.findByCustomerId(customerId)
-        .stream()
-        .map(entity -> new RefinanceDTO(
-            entity.getId(), 
-            entity.getLoadNumber(), 
-            entity.getRemainingAmount(), 
-            entity.getPaidQuotas(), 
-            entity.getMonthlyQuota(), 
-            entity.getCanBeRefinanced()
-        ))
-        .collect(Collectors.toList());
+        return refinanceRepository.findByCustomerId(customerId).stream()
+            .filter(refinance -> refinance.getPaidQuotas() >= 6) 
+            .filter(refinance -> refinance.getCanBeRefinanced() == true)
+            .map(refinance -> new RefinanceDTO(
+                refinance.getId(),
+                refinance.getLoadNumber(),
+                refinance.getRemainingAmount(),
+                refinance.getPaidQuotas(),
+                refinance.getMonthlyQuota(),
+                true
+            ))
+            .collect(Collectors.toList());
     }
 }
