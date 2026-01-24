@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+@GetMapping("/{customerId}/to-cancel")
+    public ResponseEntity<List<RefinanceDTO>> getCustomerRefinances(@PathVariable String customerId){
+        List<RefinanceDTO> refinances = refinanceService.getRefinancesByLoadNumber(customerId);
+        return ResponseEntity.ok(refinances);
+    }

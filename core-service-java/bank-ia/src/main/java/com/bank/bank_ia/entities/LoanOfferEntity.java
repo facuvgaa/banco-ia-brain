@@ -1,5 +1,6 @@
 package com.bank.bank_ia.entities;
 
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -9,26 +10,19 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Data
 @Entity
-@Table(name = "refinances")
-public class RefinanceEntity {
+@Table(name = "loan_offers")
+@Data
+public class LoanOfferEntity {
     @Id
     private UUID id;
-
+    @Column(nullable = false)   
+    private BigDecimal maxAmount;
     @Column(nullable = false)
-    private String loadNumber;
-
+    private Integer maxQuotas;
     @Column(nullable = false)
-    private BigDecimal remainingAmount;
-
+    private BigDecimal monthlyRate;
     @Column(nullable = false)
-    private Integer paidQuotas;
-
-    @Column(nullable = false)
-    private BigDecimal monthlyQuota;
-    @Column(nullable = false)
-    private BigDecimal interestRate;
-    @Column(nullable = false)
-    private Boolean canBeRefinanced;
+    private BigDecimal minDTI;
+    
 }

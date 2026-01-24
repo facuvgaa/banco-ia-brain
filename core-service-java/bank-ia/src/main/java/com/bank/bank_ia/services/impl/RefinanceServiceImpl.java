@@ -27,6 +27,7 @@ public class RefinanceServiceImpl implements RefinanceService {
                 refinance.getRemainingAmount(),
                 refinance.getPaidQuotas(),
                 refinance.getMonthlyQuota(),
+                refinance.getInterestRate(),
                 true
             ))
             .collect(Collectors.toList());

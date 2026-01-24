@@ -9,5 +9,6 @@ public record RefinanceDTO(
     BigDecimal remainingAmount,
     Integer paidQuotas,
     BigDecimal monthlyQuota,
+    BigDecimal interestRate,
     Boolean canBeRefinanced
 ) {}

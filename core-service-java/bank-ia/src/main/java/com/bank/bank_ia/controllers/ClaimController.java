@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bank.bank_ia.dto.ClaimDTO;
 import com.bank.bank_ia.dto.TransactionDTO;
 import com.bank.bank_ia.services.ClaimService;
+import com.bank.bank_ia.services.LoanOfferService;
 import com.bank.bank_ia.services.LoanService;
 import com.bank.bank_ia.services.RefinanceService;
 import com.bank.bank_ia.dto.LoanDTO;
@@ -32,7 +33,8 @@ public class ClaimController {
     private final TransactionService transactionService;
     private final LoanService loanService;
     private final RefinanceService refinanceService;
-
+    private final LoanOfferService loanOfferService;
+    
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
         @RequestBody ClaimRequest claimDTO) 
@@ -54,10 +56,15 @@ public class ClaimController {
         List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
         return ResponseEntity.ok(loans);
     }
-    @GetMapping("/refinances/{customerId}")
+    @GetMapping("/{customerId}/to-cancel")
     public ResponseEntity<List<RefinanceDTO>> getCustomerRefinances(@PathVariable String customerId){
         List<RefinanceDTO> refinances = refinanceService.getRefinancesByLoadNumber(customerId);
         return ResponseEntity.ok(refinances);
+    }
+    @GetMapping("/{customerId}/available-offer")
+    public ResponseEntity<List<LoanOfferDTO>> getAvailableOffers(@PathVariable String customerId){
+        List<LoanOfferDTO> offers = loanOfferService.getLoanOffersByCustomerId(customerId);
+        return ResponseEntity.ok(offers);
     }
     @GetMapping("/transactions/{customerId}")
         public ResponseEntity<List<TransactionDTO>> getCustomerTransactions(@PathVariable String customerId){
