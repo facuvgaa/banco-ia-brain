@@ -5,30 +5,28 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Data
 @Entity
-@Table(name = "refinances")
-public class RefinanceEntity {
+@Table(name = "accounts")
+@Data
+public class AccountEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
     @Column(nullable = false)
-    private String loadNumber;
-
+    private String customerId;
     @Column(nullable = false)
-    private BigDecimal remainingAmount;
-
+    private String accountNumber;
     @Column(nullable = false)
-    private Integer paidQuotas;
-
+    private BigDecimal balance;
     @Column(nullable = false)
-    private BigDecimal monthlyQuota;
+    private String accountType;
+    
     @Column(nullable = false)
-    private BigDecimal interestRate;
-    @Column(nullable = false)
-    private Boolean canBeRefinanced;
+    private boolean active = true;
 }
