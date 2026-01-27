@@ -1,35 +1,45 @@
 from agents_config import get_brain_agent
-from tools import _get_customer_transactions_impl
+from tools.refinance_tool import _get_refinance_context_impl
+from tools.tool_customer_transaction import _get_customer_transactions_impl
 
 
 class BrainManager:
     def __init__(self):
         self.model = get_brain_agent()
 
-    def solve_complex_claim(self, claim_text, customer_id, reason):
-        """
-        Arquitectura optimizada: Obtiene transacciones directamente y hace UNA sola llamada al modelo.
-        Esto reduce las llamadas a Bedrock de 2 a 1.
-        """
-        # Obtener transacciones directamente si tenemos customer_id válido
-        transactions_info = ""
+    def solve_complex_claim(self, claim_text: str, customer_id: str, reason: str):
+        context_info: str = ""
+        
         if customer_id and customer_id != 'UNKNOWN':
-            try:
-                transactions = _get_customer_transactions_impl(customer_id)
-                if transactions and isinstance(transactions, list):
-                    transactions_info = f"\n\nHistorial de Transacciones del Cliente:\n{self._format_transactions(transactions)}"
-                elif isinstance(transactions, str):
-                    transactions_info = f"\n\n{transactions}"
-            except Exception as e:
-                print(f"⚠️  No se pudieron obtener transacciones: {e}")
-                transactions_info = "\n\nNota: No se pudieron obtener las transacciones del cliente."
+            # Si el Triage dijo que es REFINANCIACION, traemos ese contexto
+            if "REFINANCIACION" in reason.upper() or "PRESTAMO" in reason.upper():
+                try:
+                    ref_data = _get_refinance_context_impl(customer_id)
+                    if isinstance(ref_data, dict):
+                        context_info = f"\n\nContexto de Refinanciación:\nPréstamos elegibles: {ref_data.get('eligible_loans', [])}\nOfertas nuevas: {ref_data.get('new_offers', [])}"
+                    else:
+                        context_info = f"\n\nContexto de Refinanciación:\n{ref_data}"
+                except Exception as e:
+                    print(f"⚠️  Error al obtener contexto de refinanciación: {e}")
+                    context_info = "\n\nError al obtener ofertas de refinanciación."
+            
+            else:
+                try:
+                    transactions = _get_customer_transactions_impl(customer_id)
+                    if transactions and isinstance(transactions, list):
+                        context_info = f"\n\nHistorial de Transacciones:\n{self._format_transactions(transactions)}"
+                    elif isinstance(transactions, str):
+                        context_info = f"\n\n{transactions}"
+                except Exception as e:
+                    print(f"⚠️  Error al obtener historial de transacciones: {e}")
+                    context_info = "\n\nError al obtener historial de transacciones."
 
-        # Una sola llamada al modelo con toda la información
         messages = [
-            ("system", f"Eres el Auditor Senior de Reclamos de un Banco Argentino. "
-                      f"Caso escalado por: {reason}. "
-                      f"Analiza el reclamo y las transacciones proporcionadas para dar una respuesta completa."),
-            ("human", f"ID de Cliente: {customer_id}\nReclamo: {claim_text}{transactions_info}")
+            ("system", f"Eres el Auditor y Asesor Senior de un Banco Argentino. "
+                       f"Caso escalado por: {reason}. "
+                       "Tu tarea es analizar los datos adjuntos y dar una solución definitiva. "
+                       "Si es refinanciación, compara tasas y destaca el ahorro."),
+            ("human", f"ID Cliente: {customer_id}\nConsulta: {claim_text}{context_info}")
         ]
 
         try:
@@ -54,7 +64,7 @@ class BrainManager:
             return "No hay transacciones disponibles."
         
         formatted = []
-        for txn in transactions[:10]:  # Limitar a 10 transacciones más recientes
+        for txn in transactions[:10]: 
             if isinstance(txn, dict):
                 amount = txn.get('amount', 'N/A')
                 status = txn.get('status', 'N/A')
