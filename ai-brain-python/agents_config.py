@@ -33,14 +33,12 @@ def get_bedrock_client():
     )
 
 def get_triangle_agent():
-    # Usás Haiku para el Triage porque es más barato y rápido para clasificar
     return ChatBedrock(
         client=get_bedrock_client(),
         model_id="us.anthropic.claude-3-haiku-20240307-v1:0",
     )
 
 def get_brain_agent():
-    # Usás Sonnet para el Brain porque es más inteligente para razonar y usar Tools
     return ChatBedrock(
         client=get_bedrock_client(),
         model_id="us.anthropic.claude-3-5-sonnet-20240620-v1:0",
