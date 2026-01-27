@@ -7,7 +7,7 @@ class TriageManager:
         self.model = get_triangle_agent().with_structured_output(TriageResult)
         self.specialist = BrainManager() # El agente con acceso a las tools de Java
 
-    def process_chat(self, text, customer_id):
+    def process_chat(self, text: str, customer_id: str) -> str:
         result = self.model.invoke([
             ("system", "Eres el Triage del banco. Analiza si el usuario quiere info general o realizar operaciones (préstamos, refinanciación)."),
             ("human", text)

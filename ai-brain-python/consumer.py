@@ -18,7 +18,7 @@ triage_manager = TriageManager()
 brain_manager = BrainManager()
 
 # --- FUNCIÓN DE ENVÍO ---
-def send_resolution_to_kafka(claim_id, resolution, status):
+def send_resolution_to_kafka(claim_id: str, resolution: str, status: str):
     payload = {
         'id': claim_id, # Usamos 'id' para que coincida con el UUID de Java
         'resolution': resolution,
