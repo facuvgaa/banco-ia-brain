@@ -1,7 +1,7 @@
 import json
 from confluent_kafka import Consumer, Producer
-from triage_agent import TriageManager
-from brain_agent import BrainManager
+from agents.triage_agent import TriageManager
+from agents.brain_agent import BrainManager
 
 # --- CONFIGURACIÓN ---
 consumer = Consumer({
