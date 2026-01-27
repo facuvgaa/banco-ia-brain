@@ -16,6 +16,8 @@ import lombok.Data;
 public class LoanOfferEntity {
     @Id
     private UUID id;
+    @Column(nullable = false)
+    private String customerId;
     @Column(nullable = false)   
     private BigDecimal maxAmount;
     @Column(nullable = false)
