@@ -8,18 +8,24 @@ class BrainManager:
     def __init__(self) -> None:
         self.model = get_brain_agent()
 
-    def solve_complex_claim(self, claim_text: str, customer_id: str, reason: str) -> Any:
+    def solve_complex_claim(self, claim_text: str, customer_id: str, reason: str, category: str) -> Any:
         context_info: str = ""
         
+        # Normalizamos para que "Préstamo", "prestamo" o "PRESTAMO" funcionen igual
+        search_text: str = (reason + " " + category).upper()
+        search_text = search_text.translate(str.maketrans("ÁÉÍÓÚ", "AEIOU"))
+
         if customer_id and customer_id != 'UNKNOWN':
-            if "REFINANCIACION" in reason.upper() or "PRESTAMO" in reason.upper():
+            if any(word in search_text for word in ["PRESTAMO", "REFINANCIACION", "DEUDA"]):
+                print(f"🚀 DEBUG: Entrando a lógica de PRESTAMOS para {customer_id}")
                 try:
                     ref_data: Union[Dict[str, Any], str] = _get_refinance_context_impl(customer_id)
-                    context_info = f"\n\n[DATOS FINANCIEROS PARA ANÁLISIS]:\n{ref_data}"
+                    context_info = f"\n\n[DATOS FINANCIEROS REALES]:\n{ref_data}"
                 except Exception as e:
-                    print(f"⚠️  Error al recuperar ofertas de refinanciación: {e}")
-                    context_info = "\n\n⚠️ Error al recuperar ofertas de refinanciación."
+                    print(f"⚠️  Error consultando deudas: {e}")
+                    context_info = "\n\nError consultando deudas."
             else:
+                # Caso estándar de transacciones
                 try:
                     transactions: Union[List[Dict[str, Any]], str] = _get_customer_transactions_impl(customer_id)
                     context_info = f"\n\n[HISTORIAL DE TRANSACCIONES]:\n{self._format_transactions(transactions)}"

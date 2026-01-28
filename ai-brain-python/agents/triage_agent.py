@@ -21,6 +21,7 @@ class TriageManager:
             brain_response = self.specialist.solve_complex_claim(
                 claim_text=text, 
                 customer_id=customer_id, 
-                reason=f"{result.category} - {result.reason}"
+                reason=result.reason,
+                category=result.category
             )
             return brain_response.content if hasattr(brain_response, 'content') else str(brain_response)
