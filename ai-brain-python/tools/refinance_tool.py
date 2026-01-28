@@ -2,7 +2,7 @@ import requests
 from langchain.tools import Tool 
 
 
-JAVA_BASE_URL = "http://localhost:8080/api/v1"
+JAVA_BASE_URL = "http://localhost:8080/api/v1/bank-ia"
 
 def _get_refinance_context_impl(customer_id: str):
     """

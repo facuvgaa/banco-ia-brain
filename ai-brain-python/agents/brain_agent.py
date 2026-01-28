@@ -20,9 +20,26 @@ class BrainManager:
                 print(f"🚀 DEBUG: Entrando a lógica de PRESTAMOS para {customer_id}")
                 try:
                     ref_data: Union[Dict[str, Any], str] = _get_refinance_context_impl(customer_id)
-                    context_info = f"\n\n[DATOS FINANCIEROS REALES]:\n{ref_data}"
+                    if isinstance(ref_data, dict):
+                        eligible_loans = ref_data.get("eligible_loans", [])
+                        new_offers = ref_data.get("new_offers", [])
+                        context_info = f"\n\n[DATOS FINANCIEROS REALES]:\n"
+                        context_info += f"Préstamos elegibles para refinanciar: {len(eligible_loans)}\n"
+                        if eligible_loans:
+                            for loan in eligible_loans:
+                                if isinstance(loan, dict):
+                                    context_info += f"- Préstamo {loan.get('loanNumber', 'N/A')}: ${loan.get('remainingAmount', 0)} restantes ({loan.get('paidQuotas', 0)}/{loan.get('totalQuotas', 0)} cuotas pagadas)\n"
+                        context_info += f"\nOfertas nuevas disponibles: {len(new_offers)}\n"
+                        if new_offers:
+                            for offer in new_offers:
+                                if isinstance(offer, dict):
+                                    context_info += f"- Oferta: ${offer.get('maxAmount', 0)} máximo, {offer.get('maxQuotas', 0)} cuotas, tasa {offer.get('monthlyRate', 0)}%\n"
+                    else:
+                        context_info = f"\n\n[DATOS FINANCIEROS REALES]:\n{ref_data}"
                 except Exception as e:
                     print(f"⚠️  Error consultando deudas: {e}")
+                    import traceback
+                    traceback.print_exc()
                     context_info = "\n\nError consultando deudas."
             else:
                 # Caso estándar de transacciones

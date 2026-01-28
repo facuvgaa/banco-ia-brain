@@ -61,6 +61,16 @@ public class ClaimController {
         List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
         return ResponseEntity.ok(loans);
     }
+    
+    @GetMapping("/loans/{customerId}/to-cancel")
+    public ResponseEntity<List<LoanDTO>> getCustomerRefinances(@PathVariable String customerId){
+        List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
+        // Filtrar solo los préstamos elegibles para refinanciación (ACTIVE y eligibleForRefinance = true)
+        List<LoanDTO> eligibleLoans = loans.stream()
+            .filter(loan -> "ACTIVE".equals(loan.status()) && loan.isEligibleForRefinance())
+            .toList();
+        return ResponseEntity.ok(eligibleLoans);
+    }
     @PostMapping("/refinance") 
     @Transactional
     public ResponseEntity<?> executeRefinance(@RequestBody RefinanceOperationDTO request) {
