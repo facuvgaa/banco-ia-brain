@@ -12,6 +12,8 @@ import com.bank.bank_ia.repositories.TransactionRepository;
 import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.TransactionEntity;
 import com.bank.bank_ia.dto.AccountDTO;
+import com.bank.bank_ia.enums.AccountType;
+import com.bank.bank_ia.enums.TransactionStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -22,14 +24,14 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public AccountDTO getAccountByCustomerId(String customerId) {
         AccountEntity account = accountRepository.findByCustomerId(customerId)
-                .orElseThrow(() -> new RuntimeException("Account not found for customer: " + customerId));
+                .orElseThrow(() -> new com.bank.bank_ia.exceptions.AccountNotFoundException(customerId));
         
         return new AccountDTO(
             account.getId(),
             account.getCustomerId(),
             account.getAccountNumber(),
             account.getBalance(),
-            account.getAccountType(),
+            account.getAccountType() != null ? account.getAccountType().name() : null,
             accountRepository.isAccountActive(customerId)
         );
     }
@@ -39,7 +41,7 @@ public class AccountServiceImpl implements AccountService {
     public void addBalance(String customerId, BigDecimal amount, String description) {
         // 1. Buscamos la cuenta del cliente
         AccountEntity account = accountRepository.findByCustomerId(customerId)
-                .orElseThrow(() -> new RuntimeException("Cuenta no encontrada para el cliente: " + customerId));
+                .orElseThrow(() -> new com.bank.bank_ia.exceptions.AccountNotFoundException(customerId));
 
         // 2. Actualizamos el saldo
         account.setBalance(account.getBalance().add(amount));
@@ -51,7 +53,7 @@ public class AccountServiceImpl implements AccountService {
         transaction.setAmount(amount);
         transaction.setCurrency("ARS");
         transaction.setDescription(description);
-        transaction.setStatus("SUCCESS");
+        transaction.setStatus(TransactionStatus.SUCCESS);
         transaction.setTransactionDate(LocalDateTime.now());
         // Generamos un ID de seguimiento único
         transaction.setCoelsaId("REF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());

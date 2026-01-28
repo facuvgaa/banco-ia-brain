@@ -28,7 +28,7 @@ public class LoanServiceImpl implements LoanService {
             entity.getQuotaAmount(), 
             entity.getPaidQuotas(), 
             entity.getTotalQuotas(), 
-            entity.getStatus(), 
+            entity.getStatus() != null ? entity.getStatus().name() : null, 
             entity.getStartDate(), 
             entity.isEligibleForRefinance()
         ))

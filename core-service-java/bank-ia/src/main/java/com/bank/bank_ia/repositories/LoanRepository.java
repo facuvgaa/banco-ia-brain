@@ -9,4 +9,5 @@ import com.bank.bank_ia.entities.LoanEntity;
 
 public interface LoanRepository extends JpaRepository<LoanEntity, UUID> {
     List<LoanEntity> findAllByCustomerId(String customerId);
+    List<LoanEntity> findAllByIdIn(List<UUID> ids);
 }

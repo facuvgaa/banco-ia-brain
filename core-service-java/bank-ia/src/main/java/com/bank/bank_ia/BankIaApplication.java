@@ -1,7 +1,12 @@
 package com.bank.bank_ia;
 
+import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.LoanEntity;
 import com.bank.bank_ia.entities.TransactionEntity;
+import com.bank.bank_ia.enums.AccountType;
+import com.bank.bank_ia.enums.LoanStatus;
+import com.bank.bank_ia.enums.TransactionStatus;
+import com.bank.bank_ia.repositories.AccountRepository;
 import com.bank.bank_ia.repositories.LoanRepository;
 import com.bank.bank_ia.repositories.TransactionRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -31,7 +36,7 @@ public class BankIaApplication {
                         .customerId("BERNARDO-001")
                         .amount(new BigDecimal("55000.00"))
                         .currency("ARS")
-                        .status("FAILED")
+                        .status(TransactionStatus.FAILED)
                         .coelsaId("COELSA-001")
                         .transactionDate(LocalDateTime.now().minusHours(2))
                         .description("Transferencia enviada a CBU 00000234...")
@@ -42,7 +47,7 @@ public class BankIaApplication {
                         .customerId("BERNARDO-001")
                         .amount(new BigDecimal("4500.00"))
                         .currency("ARS")
-                        .status("COMPLETED")
+                        .status(TransactionStatus.COMPLETED)
                         .coelsaId("COELSA-002")
                         .transactionDate(LocalDateTime.now().minusDays(1))
                         .description("Compra en Supermercado")
@@ -53,7 +58,7 @@ public class BankIaApplication {
                         .customerId("BERNARDO-001")
                         .amount(new BigDecimal("517759.00"))
                         .currency("ARS")
-                        .status("FAILED") // Simulamos que falló pero tiene código
+                        .status(TransactionStatus.FAILED) // Simulamos que falló pero tiene código
                         .transactionDate(LocalDateTime.now().minusHours(5))
                         .description("Transferencia a Holding Srl")
                         .coelsaId("LMORZP891OOMGF22EGJ568") // <-- El código del comprobante
@@ -79,7 +84,7 @@ public class BankIaApplication {
                 activeLoan.setQuotaAmount(new BigDecimal("50000.00"));
                 activeLoan.setPaidQuotas(0);
                 activeLoan.setTotalQuotas(10);
-                activeLoan.setStatus("ACTIVE");
+                activeLoan.setStatus(LoanStatus.ACTIVE);
                 activeLoan.setStartDate(LocalDateTime.now().minusMonths(1));
                 activeLoan.setEligibleForRefinance(true);
                 loanRepository.save(activeLoan);
@@ -148,6 +153,24 @@ public class BankIaApplication {
                 System.out.println("   - 1 préstamo habilitado (0 cuotas pagadas)");
                 System.out.println("   - 2 préstamos con 6 cuotas pagadas");
                 System.out.println("   - 2 préstamos con 3 cuotas pagadas");
+            }
+        };
+    }
+
+    @Bean
+    CommandLineRunner seedAccounts(AccountRepository accountRepository) {
+        return args -> {
+            // Verificamos si ya hay una cuenta para BERNARDO-001
+            if (accountRepository.findByCustomerId("BERNARDO-001").isEmpty()) {
+                AccountEntity account = new AccountEntity();
+                account.setCustomerId("BERNARDO-001");
+                account.setAccountNumber("ACC-" + System.currentTimeMillis());
+                account.setBalance(new BigDecimal("100000.00")); // Saldo inicial
+                account.setAccountType(AccountType.CHECKING);
+                account.setActive(true);
+                accountRepository.save(account);
+                
+                System.out.println("✅ Cuenta de prueba creada para BERNARDO-001.");
             }
         };
     }

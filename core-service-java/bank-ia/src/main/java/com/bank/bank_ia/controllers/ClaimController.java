@@ -1,8 +1,6 @@
 package com.bank.bank_ia.controllers;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -20,10 +18,15 @@ import com.bank.bank_ia.services.ClaimService;
 import com.bank.bank_ia.services.LoanOfferService;
 import com.bank.bank_ia.services.LoanService;
 import com.bank.bank_ia.services.RefinanceOperationService;
+import com.bank.bank_ia.dto.ApiResponse;
 import com.bank.bank_ia.dto.LoanDTO;
 import com.bank.bank_ia.dto.LoanOfferDTO;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
+import com.bank.bank_ia.dto.RefinanceResponseDTO;
+import com.bank.bank_ia.enums.LoanStatus;
 import com.bank.bank_ia.services.TransactionService;
+import com.bank.bank_ia.services.RefinanceResetService;
+import jakarta.validation.Valid;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class ClaimController {
     private final LoanService loanService;
     private final RefinanceOperationService refinanceOperationService;
     private final LoanOfferService loanOfferService;
+    private final RefinanceResetService refinanceResetService;
     
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
@@ -67,33 +71,19 @@ public class ClaimController {
         List<LoanDTO> loans = loanService.getLoansByCustomerId(customerId);
         // Filtrar solo los préstamos elegibles para refinanciación (ACTIVE y eligibleForRefinance = true)
         List<LoanDTO> eligibleLoans = loans.stream()
-            .filter(loan -> "ACTIVE".equals(loan.status()) && loan.isEligibleForRefinance())
+            .filter(loan -> LoanStatus.ACTIVE.name().equals(loan.status()) && loan.isEligibleForRefinance())
             .toList();
         return ResponseEntity.ok(eligibleLoans);
     }
     @PostMapping("/refinance") 
     @Transactional
-    public ResponseEntity<?> executeRefinance(@RequestBody RefinanceOperationDTO request) {
-    try {
-        refinanceOperationService.executeRefinance(request);
+    public ResponseEntity<ApiResponse<RefinanceResponseDTO>> executeRefinance(
+            @Valid @RequestBody RefinanceOperationDTO request) {
+        log.info("Recibida solicitud de refinanciación para cliente: {}", request.customerId());
+        RefinanceResponseDTO response = refinanceOperationService.executeRefinance(request);
         
-        
-        return ResponseEntity.ok(Map.of(
-            "message", "Refinanciación exitosa",
-            "customerId", request.customerId(),
-            "timestamp", LocalDateTime.now()
-        )); 
-        
-    } catch (RuntimeException e) { 
-        log.warn("Validación de negocio fallida: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(e.getMessage());
-        
-    } catch (Exception e) {
-        log.error("Error crítico en refinanciación", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                             .body("Ocurrió un error inesperado al procesar tu solicitud.");
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
-}
     
     @GetMapping("/{customerId}/available-offer")
     public ResponseEntity<List<LoanOfferDTO>> getAvailableOffers(@PathVariable String customerId){
@@ -109,6 +99,18 @@ public class ClaimController {
             }
             return ResponseEntity.ok(transactions);
         }
+    
+    @PostMapping("/reset/{customerId}")
+    @Transactional
+    public ResponseEntity<ApiResponse<RefinanceResetService.ResetResult>> resetCustomerData(
+            @PathVariable String customerId) {
+        log.info("Reseteando datos del cliente: {}", customerId);
+        
+        RefinanceResetService.ResetResult result = refinanceResetService.resetCustomerData(customerId);
+        
+        return ResponseEntity.ok(ApiResponse.success(result, "Datos reseteados exitosamente"));
+    }
+    
     public record ClaimRequest(
         String customerId,
         String message
