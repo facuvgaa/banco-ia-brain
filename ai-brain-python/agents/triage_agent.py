@@ -1,5 +1,5 @@
 from agents_config import get_triangle_agent
-from schemas import TriageResult 
+from schemas.schemas import TriageResult 
 from agents.brain_agent import BrainManager
 
 class TriageManager:
