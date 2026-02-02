@@ -12,7 +12,6 @@ import com.bank.bank_ia.repositories.TransactionRepository;
 import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.TransactionEntity;
 import com.bank.bank_ia.dto.AccountDTO;
-import com.bank.bank_ia.enums.AccountType;
 import com.bank.bank_ia.enums.TransactionStatus;
 
 @Service

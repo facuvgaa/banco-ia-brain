@@ -99,7 +99,7 @@ public class BankIaApplication {
                 loan6Quotas1.setQuotaAmount(new BigDecimal("30000.00"));
                 loan6Quotas1.setPaidQuotas(6);
                 loan6Quotas1.setTotalQuotas(10);
-                loan6Quotas1.setStatus("ACTIVE");
+                loan6Quotas1.setStatus(LoanStatus.ACTIVE);
                 loan6Quotas1.setStartDate(LocalDateTime.now().minusMonths(7));
                 loan6Quotas1.setEligibleForRefinance(true);
                 loanRepository.save(loan6Quotas1);
@@ -114,7 +114,7 @@ public class BankIaApplication {
                 loan6Quotas2.setQuotaAmount(new BigDecimal("40000.00"));
                 loan6Quotas2.setPaidQuotas(6);
                 loan6Quotas2.setTotalQuotas(10);
-                loan6Quotas2.setStatus("ACTIVE");
+                loan6Quotas2.setStatus(LoanStatus.ACTIVE);
                 loan6Quotas2.setStartDate(LocalDateTime.now().minusMonths(8));
                 loan6Quotas2.setEligibleForRefinance(true);
                 loanRepository.save(loan6Quotas2);
@@ -129,7 +129,7 @@ public class BankIaApplication {
                 loan3Quotas1.setQuotaAmount(new BigDecimal("20000.00"));
                 loan3Quotas1.setPaidQuotas(3);
                 loan3Quotas1.setTotalQuotas(10);
-                loan3Quotas1.setStatus("ACTIVE");
+                loan3Quotas1.setStatus(LoanStatus.ACTIVE);
                 loan3Quotas1.setStartDate(LocalDateTime.now().minusMonths(4));
                 loan3Quotas1.setEligibleForRefinance(true);
                 loanRepository.save(loan3Quotas1);
@@ -144,7 +144,7 @@ public class BankIaApplication {
                 loan3Quotas2.setQuotaAmount(new BigDecimal("25000.00"));
                 loan3Quotas2.setPaidQuotas(3);
                 loan3Quotas2.setTotalQuotas(10);
-                loan3Quotas2.setStatus("ACTIVE");
+                loan3Quotas2.setStatus(LoanStatus.ACTIVE);
                 loan3Quotas2.setStartDate(LocalDateTime.now().minusMonths(5));
                 loan3Quotas2.setEligibleForRefinance(true);
                 loanRepository.save(loan3Quotas2);

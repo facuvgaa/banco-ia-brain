@@ -69,7 +69,10 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
         
         // 5. Crear nuevo préstamo
         LoanEntity newLoan = loanBuilder.buildRefinanceLoan(request);
-        newLoan.setStatus(LoanStatus.ACTIVE);
+        if (newLoan == null) {
+            log.error("Error al crear el nuevo préstamo de refinanciación.");
+            return null;
+        }
         loanRepository.save(newLoan);
         
         // 6. Acreditar cash out a la cuenta

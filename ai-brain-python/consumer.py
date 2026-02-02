@@ -53,8 +53,13 @@ def start_consumer() -> None:
             
             try:
                 respuesta = triage.process_chat(user_text, customer_id)
-                respuesta_final: str = respuesta.content if hasattr(respuesta, 'content') else str(respuesta)
-                
+                # process_chat devuelve ResultTriage con response_to_user
+                respuesta_final: str = (
+                    respuesta.response_to_user
+                    if hasattr(respuesta, "response_to_user")
+                    else (respuesta.content if hasattr(respuesta, "content") else str(respuesta))
+                )
+
                 # 2. ENVIAMOS LA RESPUESTA A Kafka
                 print(f"🤖 IA Responde: {respuesta_final}")
                 send_resolution_to_kafka(claim_id, respuesta_final, "PROCESSED")
