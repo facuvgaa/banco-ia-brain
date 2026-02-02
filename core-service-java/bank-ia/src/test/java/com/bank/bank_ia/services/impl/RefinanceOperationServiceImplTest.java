@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -102,16 +105,29 @@ class RefinanceOperationServiceImplTest {
         newLoan.setEligibleForRefinance(false);
     }
 
+    private LoanOfferEntity createMatchingOffer() {
+        LoanOfferEntity offer = new LoanOfferEntity();
+        offer.setId(UUID.randomUUID());
+        offer.setCustomerId(customerId);
+        offer.setMaxAmount(new BigDecimal("500000.00"));
+        offer.setMaxQuotas(60);
+        offer.setMonthlyRate(new BigDecimal("75.0"));
+        offer.setMinDTI(new BigDecimal("0.3"));
+        return offer;
+    }
+
     @Test
     @DisplayName("Debería ejecutar refinanciación exitosamente")
     void shouldExecuteRefinanceSuccessfully() {
         // Given
-        List<LoanOfferEntity> offers = List.of(new LoanOfferEntity());
-        
+        LoanOfferEntity matchingOffer = createMatchingOffer();
+        List<LoanOfferEntity> offers = List.of(matchingOffer);
+
         when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(offers);
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
-        when(loanBuilder.buildRefinanceLoan(request)).thenReturn(newLoan);
+        when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
+        when(loanBuilder.buildRefinanceLoan(eq(request), eq(new BigDecimal("500000.00")))).thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -125,28 +141,29 @@ class RefinanceOperationServiceImplTest {
         assertThat(response.totalDebtCanceled()).isEqualByComparingTo(new BigDecimal("400000.00"));
         assertThat(response.cashOut()).isEqualByComparingTo(new BigDecimal("100000.00"));
 
-        verify(loanOfferRepository).findAllByCustomerId(customerId);
+        verify(loanOfferRepository, times(2)).findAllByCustomerId(customerId);
         verify(loanOfferRepository).deleteAll(offers);
         verify(loanRepository).findAllByIdIn(request.sourceLoanIds());
         verify(refinanceValidator).validate(request, oldLoans);
+        verify(refinanceValidator).validateAndGetMatchingOffer(eq(request), eq(offers), eq(new BigDecimal("400000.00")));
         verify(loanRepository).saveAll(oldLoans);
+        verify(loanBuilder).buildRefinanceLoan(eq(request), eq(new BigDecimal("500000.00")));
         verify(loanRepository).save(newLoan);
-        verify(accountService).addBalance(customerId, new BigDecimal("100000.00"), anyString());
+        verify(accountService).addBalance(eq(customerId), eq(new BigDecimal("100000.00")), anyString());
     }
 
     @Test
     @DisplayName("Debería eliminar ofertas del cliente antes de refinanciar")
     void shouldDeleteCustomerOffers() {
         // Given
-        List<LoanOfferEntity> offers = List.of(
-            new LoanOfferEntity(),
-            new LoanOfferEntity()
-        );
-        
+        LoanOfferEntity matchingOffer = createMatchingOffer();
+        List<LoanOfferEntity> offers = List.of(matchingOffer, new LoanOfferEntity());
+
         when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(offers);
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
-        when(loanBuilder.buildRefinanceLoan(request)).thenReturn(newLoan);
+        when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
+        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class))).thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -161,10 +178,14 @@ class RefinanceOperationServiceImplTest {
     @DisplayName("Debería cerrar préstamos antiguos con estado CLOSED_BY_REFINANCE")
     void shouldCloseOldLoans() {
         // Given
-        when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(new ArrayList<>());
+        LoanOfferEntity matchingOffer = createMatchingOffer();
+        List<LoanOfferEntity> offers = List.of(matchingOffer);
+
+        when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(offers);
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
-        when(loanBuilder.buildRefinanceLoan(request)).thenReturn(newLoan);
+        when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
+        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class))).thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -180,12 +201,28 @@ class RefinanceOperationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Debería lanzar excepción cuando la validación falla")
-    void shouldThrowExceptionWhenValidationFails() {
+    @DisplayName("Debería lanzar excepción cuando no hay ofertas")
+    void shouldThrowExceptionWhenNoOffers() {
         // Given
         when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(new ArrayList<>());
+
+        // When/Then
+        assertThatThrownBy(() -> service.executeRefinance(request))
+            .isInstanceOf(InvalidRefinanceException.class)
+            .hasMessageContaining("No se encontró una oferta");
+
+        verify(loanRepository, never()).save(any(LoanEntity.class));
+        verify(accountService, never()).addBalance(anyString(), any(BigDecimal.class), anyString());
+    }
+
+    @Test
+    @DisplayName("Debería lanzar excepción cuando la validación de préstamos falla")
+    void shouldThrowExceptionWhenLoanValidationFails() {
+        // Given
+        List<LoanOfferEntity> offers = List.of(createMatchingOffer());
+        when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(offers);
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
-        org.mockito.Mockito.doThrow(new InvalidRefinanceException("Validación fallida"))
+        doThrow(new InvalidRefinanceException("Validación fallida"))
             .when(refinanceValidator).validate(any(RefinanceOperationDTO.class), anyList());
 
         // When/Then
@@ -198,35 +235,27 @@ class RefinanceOperationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Debería calcular cash out correctamente")
+    @DisplayName("Debería calcular cash out con monto de la oferta en BD")
     void shouldCalculateCashOutCorrectly() {
-        // Given
-        BigDecimal offeredAmount = new BigDecimal("500000.00");
-        BigDecimal totalDebt = new BigDecimal("400000.00");
+        // Given: oferta con maxAmount 500000, deuda 400000 -> cash out 100000
+        LoanOfferEntity matchingOffer = createMatchingOffer();
+        List<LoanOfferEntity> offers = List.of(matchingOffer);
         BigDecimal expectedCashOut = new BigDecimal("100000.00");
 
-        request = new RefinanceOperationDTO(
-            customerId,
-            List.of(loanId1, loanId2),
-            offeredAmount,
-            60,
-            new BigDecimal("75.0"),
-            expectedCashOut
-        );
-
-        when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(new ArrayList<>());
+        when(loanOfferRepository.findAllByCustomerId(customerId)).thenReturn(offers);
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
-        when(loanBuilder.buildRefinanceLoan(request)).thenReturn(newLoan);
+        when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
+        when(loanBuilder.buildRefinanceLoan(any(), eq(new BigDecimal("500000.00")))).thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
         // When
         RefinanceResponseDTO response = service.executeRefinance(request);
 
-        // Then
+        // Then: cash out = oferta.maxAmount - totalDebt = 500000 - 400000 = 100000
         assertThat(response.cashOut()).isEqualByComparingTo(expectedCashOut);
-        verify(accountService).addBalance(customerId, expectedCashOut, anyString());
+        verify(accountService).addBalance(eq(customerId), eq(expectedCashOut), anyString());
     }
 
     private LoanEntity createLoan(UUID id, String customerId, BigDecimal remainingAmount) {

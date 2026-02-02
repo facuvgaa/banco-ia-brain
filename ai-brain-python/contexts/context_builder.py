@@ -19,6 +19,7 @@ class ContextResult:
     ref_data: Union[Dict[str, Any], str, None]
     loan_number_to_id_map: Dict[str, str]
     eligible_loans_list: List[Dict[str, Any]]
+    best_offer_summary: Dict[str, Any]
 
 
 def format_transactions(transactions: Union[List[Dict[str, Any]], str]) -> str:
@@ -51,15 +52,16 @@ def _should_fetch_loan_data(reason: str, category: str) -> bool:
 
 def _build_loan_context(
     customer_id: str,
-) -> tuple[str, Union[Dict[str, Any], str, None], Dict[str, str], List[Dict[str, Any]]]:
+) -> tuple[str, Union[Dict[str, Any], str, None], Dict[str, str], List[Dict[str, Any]], Dict[str, Any]]:
     """
     Obtiene y formatea contexto de préstamos elegibles y ofertas.
-    Retorna: (context_info, ref_data, loan_number_to_id_map, eligible_loans_list).
+    Retorna: (context_info, ref_data, loan_number_to_id_map, eligible_loans_list, best_offer_summary).
     """
     context_info = ""
     loan_number_to_id_map: Dict[str, str] = {}
     eligible_loans_list: List[Dict[str, Any]] = []
     ref_data: Union[Dict[str, Any], str, None] = None
+    empty_summary: Dict[str, Any] = {}
 
     try:
         ref_data = _get_refinance_context_impl(customer_id)
@@ -67,11 +69,11 @@ def _build_loan_context(
         logging.debug(f"⚠️  Error consultando deudas: {e}")
         import traceback
         logging.debug(traceback.print_exc())
-        return "\n\nError consultando deudas.", None, {}, []
+        return "\n\nError consultando deudas.", None, {}, [], empty_summary
 
     if not isinstance(ref_data, dict):
         context_info = f"\n\n[DATOS FINANCIEROS REALES]:\n{ref_data}"
-        return context_info, ref_data, loan_number_to_id_map, eligible_loans_list
+        return context_info, ref_data, loan_number_to_id_map, eligible_loans_list, empty_summary
 
     eligible_loans = ref_data.get("eligible_loans", [])
     eligible_loans_list = eligible_loans if isinstance(eligible_loans, list) else []
@@ -100,15 +102,77 @@ def _build_loan_context(
     if all_loan_ids:
         context_info += f"\n⚠️ IMPORTANTE: Debes incluir TODOS los {len(all_loan_ids)} préstamos en sourceLoanIds: {all_loan_ids}\n"
 
-    context_info += f"\nOfertas nuevas disponibles: {len(new_offers)}\n"
-    for offer in new_offers:
-        if isinstance(offer, dict):
-            context_info += (
-                f"- Oferta: ${offer.get('maxAmount', 0)} máximo, "
-                f"{offer.get('maxQuotas', 0)} cuotas, tasa {offer.get('monthlyRate', 0)}%\n"
-            )
+    total_debt = sum(
+        float(loan.get("remainingAmount", 0))
+        for loan in eligible_loans_list
+        if isinstance(loan, dict)
+    )
 
-    return context_info, ref_data, loan_number_to_id_map, eligible_loans_list
+    context_info += (
+        f"\nOferta de nuevo préstamo disponible (para pagar los anteriores y dar efectivo): "
+        f"{len(new_offers)} oferta(s). Deuda total a cubrir: ${total_debt:,.0f}.\n"
+    )
+
+    # Todas las ofertas que cubren la deuda: monto, cuotas, tasa, sobrante. El cliente elige una.
+    eligible_offers: List[Dict[str, Any]] = []
+    for offer in new_offers:
+        if not isinstance(offer, dict):
+            continue
+        m = float(offer.get("maxAmount", 0) or 0)
+        if m < total_debt:
+            continue
+        cuotas = offer.get("maxQuotas", 0)
+        tasa = offer.get("monthlyRate", 0)
+        sobrante = m - total_debt
+        eligible_offers.append({
+            "monto": m,
+            "cuotas": cuotas,
+            "tasa": float(tasa) if tasa is not None else 0,
+            "sobrante": sobrante,
+        })
+
+    best_offer_summary: Dict[str, Any] = {}
+    if eligible_offers:
+        # Ordenar por monto (asc) para mostrar de menor a mayor; el modelo explica trade-offs
+        eligible_offers.sort(key=lambda x: (x["monto"], x["tasa"]))
+        context_info += (
+            "\n⚠️ OPCIONES DE REFINANCIACIÓN (presentá todas; el cliente elige una). "
+            "Usá SOLO los números de la opción que elija. No inventes.\n"
+        )
+        for i, o in enumerate(eligible_offers, 1):
+            m, c, t, s = o["monto"], o["cuotas"], o["tasa"], o["sobrante"]
+            # Breve trade-off: más monto = más efectivo pero suele ser más cuotas/tasa (más interés)
+            if t >= 85:
+                nota = " — Tasa alta: más interés total; advertir al cliente."
+            elif c >= 48:
+                nota = " — Más cuotas: cuota mensual más baja, más interés total."
+            elif t <= 70:
+                nota = " — Tasa más baja: menor costo total."
+            else:
+                nota = ""
+            context_info += (
+                f"- Opción {i}: ${m:,.0f} a {c} cuotas, tasa {t}% → sobrante en efectivo: ${s:,.0f}{nota}\n"
+            )
+        context_info += (
+            f"\nDeuda total: ${total_debt:,.0f}. "
+            "Explicá: más monto = más efectivo pero puede implicar más cuotas o tasa más alta (más interés). "
+            "Menos tasa = menor costo. Más cuotas = cuota mensual más baja. "
+            "Cuando el cliente elija una opción, usá ESA oferta para execute_refinance (esos números exactos).\n"
+        )
+        # Para el prompt: lista de opciones (la "mejor" por defecto puede ser la de tasa más baja)
+        best_offer_summary = {
+            "deuda_total": total_debt,
+            "opciones": eligible_offers,
+            "recomendada_tasa_baja": min(eligible_offers, key=lambda x: x["tasa"]) if eligible_offers else {},
+        }
+    else:
+        context_info += (
+            "\n⚠️ Se consultó la oferta disponible para pagar estos préstamos; ninguna cubre la deuda o no hay ofertas. "
+            "PROHIBIDO INVENTAR montos, tasas ni sobrante. "
+            "Decile al cliente que en este momento no hay ofertas de refinanciación disponibles o que consulte más tarde.\n"
+        )
+
+    return context_info, ref_data, loan_number_to_id_map, eligible_loans_list, best_offer_summary
 
 
 def _build_transactions_context(customer_id: str) -> str:
@@ -132,18 +196,20 @@ def build_context(customer_id: str, reason: str, category: str) -> ContextResult
     loan_number_to_id_map: Dict[str, str] = {}
     eligible_loans_list: List[Dict[str, Any]] = []
 
+    best_offer_summary: Dict[str, Any] = {}
     if not customer_id or customer_id == "UNKNOWN":
         return ContextResult(
             context_info=context_info,
             ref_data=ref_data,
             loan_number_to_id_map=loan_number_to_id_map,
             eligible_loans_list=eligible_loans_list,
+            best_offer_summary=best_offer_summary,
         )
 
     should_loan = _should_fetch_loan_data(reason, category)
     if should_loan:
         logging.debug(f"🚀 DEBUG: Entrando a lógica de PRESTAMOS para {customer_id} (categoría: {category})")
-        context_info, ref_data, loan_number_to_id_map, eligible_loans_list = _build_loan_context(
+        context_info, ref_data, loan_number_to_id_map, eligible_loans_list, best_offer_summary = _build_loan_context(
             customer_id
         )
     else:
@@ -154,6 +220,7 @@ def build_context(customer_id: str, reason: str, category: str) -> ContextResult
         ref_data=ref_data,
         loan_number_to_id_map=loan_number_to_id_map,
         eligible_loans_list=eligible_loans_list,
+        best_offer_summary=best_offer_summary,
     )
 
 

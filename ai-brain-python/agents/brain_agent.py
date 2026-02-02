@@ -34,8 +34,10 @@ class BrainManager:
         context_info = ctx.context_info
         loan_number_to_id_map = ctx.loan_number_to_id_map
 
-        # Preparar el mensaje del sistema
-        system_prompt = get_system_prompt(customer_id, reason, category)
+        # Preparar el mensaje del sistema (inyectamos números de la mejor oferta si hay)
+        system_prompt = get_system_prompt(
+            customer_id, reason, category, getattr(ctx, "best_offer_summary", None) or {}
+        )
 
         messages: List[tuple[str, str]] = [
             ("system", system_prompt),
@@ -50,8 +52,8 @@ class BrainManager:
                 return cached_response
             
             time.sleep(0.5)
-            
-            response = self._invoke_with_retry(messages)
+            # Una sola llamada: botocore ya hace hasta 5 reintentos con backoff; retry propio multiplicaba (3×5=15) requests
+            response = self.model_with_tools.invoke(messages)
             logging.debug(f"🔍 DEBUG: Tipo de respuesta: {type(response)}")
             logging.debug(f"🔍 DEBUG: Contenido de respuesta: {response.content if hasattr(response, 'content') else str(response)[:200]}")
             
@@ -127,9 +129,8 @@ class BrainManager:
                     current_messages.append(("human", f"Resultado de la herramienta: {result}"))
                 
                 logging.debug(f"🔍 DEBUG: Invocando modelo con {len(current_messages)} mensajes")
-                # Delay antes de la segunda llamada
                 time.sleep(0.5)
-                final_response = self._invoke_with_retry(current_messages)
+                final_response = self.model_with_tools.invoke(current_messages)
                 logging.debug(f"✅ DEBUG: Respuesta final obtenida")
                 return final_response
             
@@ -146,32 +147,3 @@ class BrainManager:
             logging.debug(f"❌ Error inesperado al invocar AWS Bedrock: {e}")
             raise
     
-    def _invoke_with_retry(self, messages: List[tuple[str, str]], max_retries: int = 3) -> Any:
-        """
-        Invoca el modelo con retry y backoff exponencial para manejar rate limits.
-        """
-        base_delay = 2.0  # Delay inicial de 2 segundos
-        
-        for attempt in range(max_retries):
-            try:
-                return self.model_with_tools.invoke(messages)
-            except ValueError as e:
-                error_str = str(e)
-                if "ThrottlingException" in error_str or "Too many requests" in error_str:
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)  # Backoff exponencial: 2s, 4s, 8s
-                        logging.debug(f"⏳ Rate limit alcanzado. Reintentando en {delay:.1f} segundos... (intento {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                        continue
-                    else:
-                        logging.debug(f"❌ Error: Rate limit de AWS Bedrock alcanzado después de {max_retries} intentos.")
-                        raise ValueError(f"Rate limit de AWS Bedrock alcanzado. Por favor, espera unos minutos antes de volver a intentar.")
-                else:
-                    # Otro tipo de ValueError, re-lanzar
-                    raise
-            except Exception as e:
-                # Para otros errores, re-lanzar inmediatamente
-                raise
-        
-        # Esto no debería ejecutarse nunca, pero por si acaso
-        raise Exception("Error inesperado en _invoke_with_retry")

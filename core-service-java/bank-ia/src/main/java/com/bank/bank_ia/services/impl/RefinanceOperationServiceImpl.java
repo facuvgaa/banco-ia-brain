@@ -15,6 +15,7 @@ import com.bank.bank_ia.dto.RefinanceResponseDTO;
 import com.bank.bank_ia.entities.LoanEntity;
 import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.enums.LoanStatus;
+import com.bank.bank_ia.exceptions.InvalidRefinanceException;
 import com.bank.bank_ia.repositories.LoanRepository;
 import com.bank.bank_ia.repositories.LoanOfferRepository;
 import com.bank.bank_ia.services.AccountService;
@@ -53,34 +54,43 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
         log.info("Iniciando refinanciación para el cliente: {}", request.customerId());
         log.info("Préstamos a refinanciar: {}", request.sourceLoanIds());
 
-        // 1. Eliminar ofertas del cliente
-        deleteCustomerOffers(request.customerId());
-        
+        // 1. Obtener ofertas del cliente (antes de borrarlas)
+        List<LoanOfferEntity> offers = loanOfferRepository.findAllByCustomerId(request.customerId());
+        if (offers.isEmpty()) {
+            throw InvalidRefinanceException.noMatchingOffer();
+        }
+
         // 2. Buscar y validar préstamos
         List<LoanEntity> oldLoans = findAndValidateLoans(request);
-        
-        // 3. Calcular deuda y cash out
         BigDecimal totalDebt = calculateTotalDebt(oldLoans);
-        BigDecimal cashOut = request.offeredAmount().subtract(totalDebt);
-        log.info("Deuda total a cancelar: {}, Cash out: {}", totalDebt, cashOut);
-        
-        // 4. Cerrar préstamos antiguos
+
+        // 3. Validar que el monto solicitado esté dentro del rango de la oferta (totalDebt <= offeredAmount <= maxAmount)
+        LoanOfferEntity matchingOffer = refinanceValidator.validateAndGetMatchingOffer(request, offers, totalDebt);
+        BigDecimal resolvedAmount = matchingOffer.getMaxAmount();
+
+        // 4. Eliminar ofertas del cliente
+        deleteCustomerOffers(request.customerId());
+
+        // 5. Calcular cash out con el monto de la oferta en BD (fuente de verdad)
+        BigDecimal cashOut = resolvedAmount.subtract(totalDebt);
+        log.info("Deuda total a cancelar: {}, Monto oferta (BD): {}, Cash out: {}", totalDebt, resolvedAmount, cashOut);
+
+        // 6. Cerrar préstamos antiguos
         closeOldLoans(oldLoans);
-        
-        // 5. Crear nuevo préstamo
-        LoanEntity newLoan = loanBuilder.buildRefinanceLoan(request);
+
+        // 7. Crear nuevo préstamo con el monto resuelto de la oferta
+        LoanEntity newLoan = loanBuilder.buildRefinanceLoan(request, resolvedAmount);
         if (newLoan == null) {
             log.error("Error al crear el nuevo préstamo de refinanciación.");
             return null;
         }
         loanRepository.save(newLoan);
-        
-        // 6. Acreditar cash out a la cuenta
+
+        // 8. Acreditar cash out a la cuenta
         creditCashOut(request.customerId(), cashOut, newLoan.getLoanNumber());
-        
+
         log.info("Refinanciación completada con éxito. Sobrante acreditado: {}", cashOut);
-        
-        // 7. Retornar respuesta estructurada
+
         return RefinanceResponseDTO.of(
             request.customerId(),
             newLoan.getId(),

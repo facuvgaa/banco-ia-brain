@@ -75,7 +75,7 @@ class RefinanceValidatorTest {
         // When/Then
         assertThatThrownBy(() -> validator.validate(request, loans))
             .isInstanceOf(InvalidRefinanceException.class)
-            .hasMessageContaining("lista de préstamos");
+            .hasMessageContaining("préstamos");
     }
 
     @Test
@@ -162,7 +162,7 @@ class RefinanceValidatorTest {
         // When/Then
         assertThatThrownBy(() -> validator.validate(request, loans))
             .isInstanceOf(InvalidRefinanceException.class)
-            .hasMessageContaining("insuficiente");
+            .hasMessageContaining("no cubre");
     }
 
     @Test

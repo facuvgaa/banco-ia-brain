@@ -24,4 +24,20 @@ public class InvalidRefinanceException extends BusinessException {
     public static InvalidRefinanceException emptyLoanList() {
         return new InvalidRefinanceException("No se especificaron préstamos para refinanciar");
     }
+
+    public static InvalidRefinanceException noMatchingOffer() {
+        return new InvalidRefinanceException(
+            "No se encontró una oferta del cliente que coincida con las cuotas y tasa indicadas"
+        );
+    }
+
+    public static InvalidRefinanceException offeredAmountOutOfRange(
+            BigDecimal offeredAmount, BigDecimal totalDebt, BigDecimal maxAmount) {
+        return new InvalidRefinanceException(
+            String.format(
+                "El monto solicitado (%.2f) debe ser mayor o igual a la deuda a cancelar (%.2f) y menor o igual al máximo de la oferta (%.2f)",
+                offeredAmount, totalDebt, maxAmount
+            )
+        );
+    }
 }

@@ -27,9 +27,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.LoanEntity;
+import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.enums.AccountType;
 import com.bank.bank_ia.enums.LoanStatus;
 import com.bank.bank_ia.repositories.AccountRepository;
+import com.bank.bank_ia.repositories.LoanOfferRepository;
 import com.bank.bank_ia.repositories.LoanRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -64,12 +66,16 @@ class ClaimControllerIntegrationTest {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private LoanOfferRepository loanOfferRepository;
+
     private String customerId;
     private UUID loanId1;
     private UUID loanId2;
 
     @BeforeEach
     void setUp() {
+        loanOfferRepository.deleteAll();
         loanRepository.deleteAll();
         accountRepository.deleteAll();
 
@@ -90,6 +96,16 @@ class ClaimControllerIntegrationTest {
         LoanEntity loan1 = createLoan(loanId1, customerId, new BigDecimal("200000.00"));
         LoanEntity loan2 = createLoan(loanId2, customerId, new BigDecimal("200000.00"));
         loanRepository.saveAll(List.of(loan1, loan2));
+
+        // Crear oferta que coincida con el request (500000, 60 cuotas, 75% tasa)
+        LoanOfferEntity offer = new LoanOfferEntity();
+        offer.setId(UUID.randomUUID());
+        offer.setCustomerId(customerId);
+        offer.setMaxAmount(new BigDecimal("500000.00"));
+        offer.setMaxQuotas(60);
+        offer.setMonthlyRate(new BigDecimal("75.0"));
+        offer.setMinDTI(new BigDecimal("0.3"));
+        loanOfferRepository.save(offer);
     }
 
     @Test
@@ -131,8 +147,8 @@ class ClaimControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Debería retornar 400 cuando el monto es insuficiente")
-    void shouldReturn400WhenAmountIsInsufficient() throws Exception {
+    @DisplayName("Debería retornar 422 cuando el monto es insuficiente")
+    void shouldReturn422WhenAmountIsInsufficient() throws Exception {
         // Given
         RefinanceOperationDTO request = new RefinanceOperationDTO(
             customerId,
@@ -143,17 +159,37 @@ class ClaimControllerIntegrationTest {
             new BigDecimal("100000.00")
         );
 
-        // When/Then
+        // When/Then (BusinessException -> 422 UNPROCESSABLE_ENTITY)
         mockMvc.perform(post("/api/v1/bank-ia/refinance")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    @DisplayName("Debería retornar 422 cuando el monto solicitado supera el máximo de la oferta")
+    void shouldReturn422WhenOfferedAmountExceedsOfferMax() throws Exception {
+        // Given: oferta tiene maxAmount 500000; solicitamos 600000
+        RefinanceOperationDTO request = new RefinanceOperationDTO(
+            customerId,
+            List.of(loanId1, loanId2),
+            new BigDecimal("600000.00"), // Mayor que oferta maxAmount 500000
+            60,
+            new BigDecimal("75.0"),
+            new BigDecimal("200000.00")
+        );
+
+        // When/Then (BusinessException -> 422)
+        mockMvc.perform(post("/api/v1/bank-ia/refinance")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
     @DisplayName("Debería retornar 400 cuando la lista de préstamos está vacía")
     void shouldReturn400WhenLoanListIsEmpty() throws Exception {
-        // Given
+        // Given (@NotEmpty en sourceLoanIds -> MethodArgumentNotValidException -> 400)
         RefinanceOperationDTO request = new RefinanceOperationDTO(
             customerId,
             List.of(), // Lista vacía

@@ -1,9 +1,12 @@
 import json
+import logging
 import re
 import requests
 from typing import Any, Dict, List
 
 from langchain.tools import Tool
+
+logger = logging.getLogger(__name__)
 
 
 JAVA_BASE_URL = "http://localhost:8080/api/v1/bank-ia"
@@ -14,33 +17,62 @@ UUID_PATTERN = re.compile(
 
 def _get_refinance_context_impl(customer_id: str):
     """
-    Busca préstamos aptos para cancelar y ofertas de crédito vigentes.
-    Indispensable para que la IA analice si al cliente le conviene refinanciar.
+    Consulta DOS cosas indispensables para refinanciar:
+    1. Préstamos a refinanciar (to-cancel): los que el cliente ya tiene y se van a cancelar.
+    2. Oferta disponible (available-offer): el nuevo préstamo que el banco ofrece para pagar esos y dar efectivo.
     """
     if not customer_id or customer_id == 'UNKNOWN':
         return "Error: ID de cliente inválido."
-    
+
+    # 1) Préstamos a refinanciar (los que se van a pagar con el nuevo préstamo)
     try:
-        to_cancel = requests.get(f"{JAVA_BASE_URL}/loans/{customer_id}/to-cancel", timeout=5).json()
-        offers = requests.get(f"{JAVA_BASE_URL}/{customer_id}/available-offer/", timeout=5).json()
-        
-        return {
-            "eligible_loans": to_cancel,
-            "new_offers": offers
-        }
+        r_loans = requests.get(f"{JAVA_BASE_URL}/loans/{customer_id}/to-cancel", timeout=5)
+        r_loans.raise_for_status()
+        to_cancel = r_loans.json()
+        to_cancel = to_cancel if isinstance(to_cancel, list) else []
     except Exception as e:
-        return f"Error al obtener contexto de refinanciación: {e}"
+        return f"Error al obtener préstamos a refinanciar: {e}"
+
+    # 2) Oferta de nuevo préstamo disponible para pagar esos y dar efectivo
+    try:
+        r_offers = requests.get(f"{JAVA_BASE_URL}/{customer_id}/available-offer", timeout=5)
+        if r_offers.status_code == 200:
+            new_offers = r_offers.json() if r_offers.content else []
+            new_offers = new_offers if isinstance(new_offers, list) else []
+        else:
+            logger.warning(
+                "available-offer devolvió %s para %s; sin oferta no hay monto/sobrante para mostrar.",
+                r_offers.status_code, customer_id,
+            )
+            new_offers = []
+    except Exception as e:
+        logger.warning(
+            "Error al consultar oferta disponible (available-offer) para %s: %s",
+            customer_id, e,
+        )
+        new_offers = []
+
+    return {
+        "eligible_loans": to_cancel,
+        "new_offers": new_offers,
+    }
 
 def _execute_refinance_impl(payload: dict):
     """
     Ejecuta la refinanciación final enviando el DTO a Java.
-    Requiere un diccionario con: customerId, loanIdsToCancel, newTotalAmount, quotas, etc.
+    Requiere un diccionario con: customerId, sourceLoanIds, offeredAmount, selectedQuotas, appliedRate, expectedCashOut.
     """
     try:
         response = requests.post(f"{JAVA_BASE_URL}/refinance", json=payload, timeout=10)
         if response.status_code == 200:
-            return f"Éxito: Operación procesada. Detalles: {response.json()}"
-        return f"Error en la refinanciación: {response.text}"
+            response_json = response.json()
+            return f"Éxito: Operación procesada. Detalles: {response_json}", response_json
+        try:
+            err_body = response.json()
+            detail = err_body if isinstance(err_body, str) else err_body.get("message", err_body)
+        except Exception:
+            detail = response.text or response.reason or f"HTTP {response.status_code}"
+        return f"Error en la refinanciación (HTTP {response.status_code}): {detail}"
     except Exception as e:
         return f"Error de conexión con el Core Bancario: {e}"
 

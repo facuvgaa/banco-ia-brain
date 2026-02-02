@@ -50,23 +50,23 @@ def start_consumer() -> None:
             customer_id: str = claim_data.get('customerId') or claim_data.get('clientId') or 'UNKNOWN'
             
             print(f"📩 Nuevo mensaje de {customer_id}: {user_text}")
-            
+
             try:
                 respuesta = triage.process_chat(user_text, customer_id)
-                # process_chat devuelve ResultTriage con response_to_user
                 respuesta_final: str = (
                     respuesta.response_to_user
                     if hasattr(respuesta, "response_to_user")
                     else (respuesta.content if hasattr(respuesta, "content") else str(respuesta))
                 )
-
-                # 2. ENVIAMOS LA RESPUESTA A Kafka
                 print(f"🤖 IA Responde: {respuesta_final}")
                 send_resolution_to_kafka(claim_id, respuesta_final, "PROCESSED")
             except Exception as e:
                 print(f"❌ Error al procesar: {e}")
-                error_message: str = f"Error al procesar reclamo: {str(e)}. Por favor, contacte con soporte."
-                send_resolution_to_kafka(claim_id, error_message, "ERROR")
+                send_resolution_to_kafka(
+                    claim_id,
+                    f"Error al procesar reclamo: {str(e)}. Por favor, contacte con soporte.",
+                    "ERROR",
+                )
             
     except KeyboardInterrupt:
         print("🛑 Deteniendo el Monstruo...")

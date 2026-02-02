@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.entities.LoanEntity;
+import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.exceptions.InvalidRefinanceException;
 import com.bank.bank_ia.exceptions.LoanNotFoundException;
 
@@ -68,5 +69,42 @@ public class RefinanceValidator {
         return loans.stream()
             .map(LoanEntity::getRemainingAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Valida que el monto solicitado esté dentro del rango permitido por la oferta del cliente.
+     * El monto debe ser: totalDebt <= offeredAmount <= maxAmount de la oferta que coincida con cuotas y tasa.
+     *
+     * @param request Solicitud de refinanciación
+     * @param offers Ofertas vigentes del cliente
+     * @param totalDebt Deuda total a cancelar
+     * @return La oferta que coincide con la solicitud (cuotas y tasa)
+     * @throws InvalidRefinanceException Si no hay oferta coincidente o el monto está fuera de rango
+     */
+    public LoanOfferEntity validateAndGetMatchingOffer(
+            RefinanceOperationDTO request,
+            List<LoanOfferEntity> offers,
+            BigDecimal totalDebt) {
+        if (offers == null || offers.isEmpty()) {
+            throw InvalidRefinanceException.noMatchingOffer();
+        }
+
+        LoanOfferEntity matching = offers.stream()
+            .filter(o -> Integer.valueOf(o.getMaxQuotas()).equals(request.selectedQuotas())
+                && o.getMonthlyRate().compareTo(request.appliedRate()) == 0)
+            .findFirst()
+            .orElseThrow(InvalidRefinanceException::noMatchingOffer);
+
+        BigDecimal maxAmount = matching.getMaxAmount();
+        BigDecimal offered = request.offeredAmount();
+
+        if (offered.compareTo(totalDebt) < 0) {
+            throw InvalidRefinanceException.insufficientAmount(offered, totalDebt);
+        }
+        if (offered.compareTo(maxAmount) > 0) {
+            throw InvalidRefinanceException.offeredAmountOutOfRange(offered, totalDebt, maxAmount);
+        }
+
+        return matching;
     }
 }

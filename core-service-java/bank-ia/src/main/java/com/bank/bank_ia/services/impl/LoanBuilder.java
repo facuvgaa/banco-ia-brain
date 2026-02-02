@@ -27,19 +27,26 @@ public class LoanBuilder {
      * Crea un nuevo préstamo de refinanciación basado en la operación.
      */
     public LoanEntity buildRefinanceLoan(RefinanceOperationDTO request) {
+        return buildRefinanceLoan(request, request.offeredAmount());
+    }
+
+    /**
+     * Crea un nuevo préstamo de refinanciación usando el monto resuelto (ej. desde la oferta en BD).
+     */
+    public LoanEntity buildRefinanceLoan(RefinanceOperationDTO request, BigDecimal offeredAmount) {
         LoanEntity loan = new LoanEntity();
         loan.setId(UUID.randomUUID());
         loan.setCustomerId(request.customerId());
         loan.setLoanNumber(generateLoanNumber());
-        loan.setTotalAmount(request.offeredAmount());
-        loan.setRemainingAmount(request.offeredAmount());
-        loan.setQuotaAmount(calculateQuotaAmount(request.offeredAmount(), request.selectedQuotas()));
+        loan.setTotalAmount(offeredAmount);
+        loan.setRemainingAmount(offeredAmount);
+        loan.setQuotaAmount(calculateQuotaAmount(offeredAmount, request.selectedQuotas()));
         loan.setTotalQuotas(request.selectedQuotas());
         loan.setPaidQuotas(0);
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());
         loan.setEligibleForRefinance(false);
-        
+
         return loan;
     }
     

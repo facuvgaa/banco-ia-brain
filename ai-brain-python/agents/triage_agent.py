@@ -1,6 +1,17 @@
+import time
+
 from agents_config import get_triangle_agent
 from schemas.schemas import TriageResult
 from agents.brain_agent import BrainManager
+
+# Pausa entre llamada a triage y brain cuando SÍ usamos triage (evitar throttling)
+DELAY_BEFORE_SPECIALIST_SECONDS = 5
+
+# Palabras que indican refinanciación: si el mensaje las tiene, vamos directo al brain (1 llamada Bedrock en vez de 2)
+REFINANCE_KEYWORDS = ("refinanciar", "refinance", "prestamos", "préstamos", "prestamo", "préstamo")
+REFINANCE_CONTEXT = ("efectivo", "plata", "cuenta", "deudas", "cancelar", "consolidar", "plan")
+# El cliente está eligiendo una opción de refinanciación (ej. "la 4", "opción 4", "quiero la opción 4") -> brain
+OPTION_CHOICE_PATTERNS = ("opcion", "opción", "la 1", "la 2", "la 3", "la 4", "la 5", "quiero la", "gustaría la", "quiero esa", "esa refinanciacion", "esa refinanciación")
 
 
 class ResultTriage:
@@ -24,7 +35,66 @@ class TriageManager:
         self.model = get_triangle_agent().with_structured_output(TriageResult)
         self.specialist = BrainManager()
 
+    def _is_clear_refinance(self, text: str) -> bool:
+        """Si el mensaje es claramente de refinanciación, no hace falta llamar al triage (ahorramos 1 llamada Bedrock)."""
+        t = text.lower().strip()
+        has_refinance = any(k in t for k in REFINANCE_KEYWORDS)
+        has_context = any(c in t for c in REFINANCE_CONTEXT)
+        return has_refinance and (has_context or len(t) > 40)
+
+    def _is_choosing_refinance_option(self, text: str) -> bool:
+        """El cliente está eligiendo una opción (ej. 'la 4', 'quiero la opción 4') -> debe ir al brain para ejecutar."""
+        t = text.lower().strip()
+        if any(p in t for p in OPTION_CHOICE_PATTERNS):
+            return True
+        # "opcion 4" / "opción 4" con número
+        if ("opcion" in t or "opción" in t) and any(str(i) in t for i in range(1, 10)):
+            return True
+        return False
+
     def process_chat(self, text: str, customer_id: str) -> ResultTriage:
+        # Fast path: refinanciación o elección de opción -> directo al brain
+        if self._is_clear_refinance(text):
+            print("DEBUG: Escalando a especialista por: mensaje de refinanciación (sin triage)")
+            brain_response = self.specialist.solve_complex_claim(
+                claim_text=text,
+                customer_id=customer_id,
+                reason="Refinanciación de préstamos",
+                category="Préstamo",
+            )
+            response_text = (
+                brain_response.content
+                if hasattr(brain_response, "content")
+                else str(brain_response)
+            )
+            return ResultTriage(
+                decision="ESCALATE",
+                reason="Refinanciación",
+                response_to_user=response_text,
+                category="Préstamo",
+            )
+
+        # Fast path: cliente elige opción (ej. "la 4", "quiero la opción 4") -> brain debe ejecutar
+        if self._is_choosing_refinance_option(text):
+            print("DEBUG: Escalando a especialista por: elección de opción de refinanciación (sin triage)")
+            brain_response = self.specialist.solve_complex_claim(
+                claim_text=text,
+                customer_id=customer_id,
+                reason="Refinanciación de préstamos",
+                category="Préstamo",
+            )
+            response_text = (
+                brain_response.content
+                if hasattr(brain_response, "content")
+                else str(brain_response)
+            )
+            return ResultTriage(
+                decision="ESCALATE",
+                reason="Elección de opción de refinanciación",
+                response_to_user=response_text,
+                category="Préstamo",
+            )
+
         result = self.model.invoke([
             ("system", "Eres el Triage del banco. Decide si resolver (saludos/info general) o escalar."),
             ("human", text),
@@ -40,6 +110,7 @@ class TriageManager:
 
         if result.decision == "ESCALATE":
             print(f"DEBUG: Escalando a especialista por: {result.reason}")
+            time.sleep(DELAY_BEFORE_SPECIALIST_SECONDS)
             brain_response = self.specialist.solve_complex_claim(
                 claim_text=text,
                 customer_id=customer_id,
