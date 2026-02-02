@@ -4,10 +4,13 @@ Centraliza la lógica de qué datos traer según reason/category y el formateo p
 """
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
-
 from tools.refinance_tool import _get_refinance_context_impl
 from tools.tool_customer_transaction import _get_customer_transactions_impl
 
+import logging
+
+logging.basicConfig(filename='context_builder.log', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ContextResult:
@@ -61,9 +64,9 @@ def _build_loan_context(
     try:
         ref_data = _get_refinance_context_impl(customer_id)
     except Exception as e:
-        print(f"⚠️  Error consultando deudas: {e}")
+        logging.debug(f"⚠️  Error consultando deudas: {e}")
         import traceback
-        traceback.print_exc()
+        logging.debug(traceback.print_exc())
         return "\n\nError consultando deudas.", None, {}, []
 
     if not isinstance(ref_data, dict):
@@ -114,7 +117,7 @@ def _build_transactions_context(customer_id: str) -> str:
         transactions: Union[List[Dict[str, Any]], str] = _get_customer_transactions_impl(customer_id)
         return f"\n\n[HISTORIAL DE TRANSACCIONES]:\n{format_transactions(transactions)}"
     except Exception as e:
-        print(f"⚠️  Error al recuperar historial: {e}")
+        logging.debug(f"⚠️  Error al recuperar historial: {e}")
         return "\n\n⚠️ Error al recuperar historial."
 
 
@@ -139,7 +142,7 @@ def build_context(customer_id: str, reason: str, category: str) -> ContextResult
 
     should_loan = _should_fetch_loan_data(reason, category)
     if should_loan:
-        print(f"🚀 DEBUG: Entrando a lógica de PRESTAMOS para {customer_id} (categoría: {category})")
+        logging.debug(f"🚀 DEBUG: Entrando a lógica de PRESTAMOS para {customer_id} (categoría: {category})")
         context_info, ref_data, loan_number_to_id_map, eligible_loans_list = _build_loan_context(
             customer_id
         )
@@ -151,4 +154,42 @@ def build_context(customer_id: str, reason: str, category: str) -> ContextResult
         ref_data=ref_data,
         loan_number_to_id_map=loan_number_to_id_map,
         eligible_loans_list=eligible_loans_list,
+    )
+
+
+def get_eligible_loan_ids(ctx: ContextResult, customer_id: str) -> List[str]:
+    """
+    Obtiene la lista de UUIDs de préstamos elegibles a partir del contexto.
+    Si el contexto no tiene datos (ej. categoría transacciones), intenta obtenerlos de la API.
+    """
+    eligible_loans_from_data: List[Dict[str, Any]] = []
+    if isinstance(ctx.ref_data, dict):
+        eligible_loans_from_data = ctx.ref_data.get("eligible_loans", []) or []
+    if not eligible_loans_from_data and ctx.eligible_loans_list:
+        eligible_loans_from_data = ctx.eligible_loans_list
+    if not eligible_loans_from_data:
+        try:
+            fresh = _get_refinance_context_impl(customer_id)
+            if isinstance(fresh, dict):
+                eligible_loans_from_data = fresh.get("eligible_loans", []) or []
+        except Exception:
+            pass
+    return [
+        str(loan.get("id", ""))
+        for loan in eligible_loans_from_data
+        if isinstance(loan, dict) and loan.get("id")
+    ]
+
+
+def refinance_success_message(customer_id: str, amount_credited: float) -> str:
+    """
+    Mensaje de éxito tras una refinanciación. Debe indicar explícitamente
+    cuánta plata se le agregó/acreditó a la cuenta del cliente.
+    """
+    amount_str = f"${amount_credited:,.2f}"
+    return (
+        f"¡Excelente! La refinanciación se ha completado exitosamente. "
+        f"Todos tus préstamos fueron consolidados en un nuevo préstamo. "
+        f"Se te agregó {amount_str} a tu cuenta (dinero sobrante acreditado). "
+        f"Podés verificar el nuevo préstamo y el saldo actualizado en tu cuenta."
     )
