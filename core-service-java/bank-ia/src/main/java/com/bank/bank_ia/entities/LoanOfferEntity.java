@@ -1,9 +1,6 @@
 package com.bank.bank_ia.entities;
-
-
 import java.math.BigDecimal;
 import java.util.UUID;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

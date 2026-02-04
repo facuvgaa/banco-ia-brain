@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import com.bank.bank_ia.config.LoanConstants;
 import com.bank.bank_ia.config.RefinanceProperties;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.entities.LoanEntity;
@@ -48,6 +49,30 @@ public class LoanBuilder {
         loan.setEligibleForRefinance(false);
 
         return loan;
+    }
+
+    /**
+     * Crea un nuevo préstamo (no refinanciación) para la misma tabla de préstamos (loads).
+     * Se usa cuando el cliente toma una oferta de nuevo préstamo.
+     */
+    public LoanEntity buildNewLoan(String customerId, BigDecimal amount, Integer quotas) {
+        LoanEntity loan = new LoanEntity();
+        loan.setId(UUID.randomUUID());
+        loan.setCustomerId(customerId);
+        loan.setLoanNumber(generateNewLoanNumber());
+        loan.setTotalAmount(amount);
+        loan.setRemainingAmount(amount);
+        loan.setQuotaAmount(calculateQuotaAmount(amount, quotas));
+        loan.setTotalQuotas(quotas);
+        loan.setPaidQuotas(0);
+        loan.setStatus(LoanStatus.ACTIVE);
+        loan.setStartDate(LocalDateTime.now());
+        loan.setEligibleForRefinance(false);
+        return loan;
+    }
+
+    private String generateNewLoanNumber() {
+        return LoanConstants.STANDARD_LOAN_PREFIX + System.currentTimeMillis();
     }
     
     private String generateLoanNumber() {

@@ -6,11 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- RATE LIMIT (429) EN BEDROCK ---
-# Causas: (1) Cuota baja (RPM/tokens por minuto). (2) Reintentos: con max_attempts>1,
-# ante 429 botocore reintenta = más requests y más throttling. (3) Mensaje 1 y 2 seguidos.
-# Mitigación: max_attempts=1 (no reintentar en 429; fallar rápido sin enviar 2ª request)
-# y delay largo antes del 2º mensaje para no superar RPM.
 BEDROCK_RETRY_CONFIG = Config(retries={"max_attempts": 1, "mode": "standard"})
 
 
@@ -28,10 +23,11 @@ Sos el Especialista en Préstamos. Tu objetivo es ayudar a refinanciar deudas.
 3. Calculá el sobrante: Monto Oferta - Deuda Actual.
 4. Si le conviene (tasa más baja), ofrecelo resaltando el ahorro y el dinero extra.
 5. NO ejecutes 'execute_refinance' sin confirmación explícita ("Acepto", "Si", "Dale").
+6. si el cliente no tiene prestamos para refinanciar, ofrecele directamente un nuevo prestamo para sacar.
+6. si directamente requiere sacar un prestamo aclara siempre cual le conviene mas, partiendo del interes y el monto.
 """
 
 # --- CONFIGURACIÓN DE CLIENTE Y AGENTES ---
-# Un solo cliente Bedrock para todo el proceso (evita clientes duplicados y posibles dobles llamadas).
 _bedrock_client = None
 
 def get_bedrock_client():

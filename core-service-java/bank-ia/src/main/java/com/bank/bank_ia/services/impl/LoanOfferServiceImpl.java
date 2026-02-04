@@ -29,4 +29,12 @@ public class LoanOfferServiceImpl implements LoanOfferService {
         ))
         .collect(Collectors.toList());
     }
+
+    @Override
+    public void deleteAllByCustomerId(String customerId) {
+       var offers = loanOfferRepository.findAllByCustomerId(customerId);
+       if (!offers.isEmpty()) {
+        loanOfferRepository.deleteAll(offers);
+       }
+    }
 }

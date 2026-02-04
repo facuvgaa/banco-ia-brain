@@ -21,13 +21,15 @@ import com.bank.bank_ia.services.RefinanceOperationService;
 import com.bank.bank_ia.dto.ApiResponse;
 import com.bank.bank_ia.dto.LoanDTO;
 import com.bank.bank_ia.dto.LoanOfferDTO;
+import com.bank.bank_ia.dto.NewLoanDTO;
+import com.bank.bank_ia.dto.NewLoanRequestDTO;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.dto.RefinanceResponseDTO;
 import com.bank.bank_ia.enums.LoanStatus;
 import com.bank.bank_ia.services.TransactionService;
 import com.bank.bank_ia.services.RefinanceResetService;
 import jakarta.validation.Valid;
-
+import com.bank.bank_ia.services.newLoanService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +45,8 @@ public class ClaimController {
     private final RefinanceOperationService refinanceOperationService;
     private final LoanOfferService loanOfferService;
     private final RefinanceResetService refinanceResetService;
-    
+    private final newLoanService newLoanService;
+
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
         @RequestBody ClaimRequest claimDTO) 
@@ -110,7 +113,16 @@ public class ClaimController {
         
         return ResponseEntity.ok(ApiResponse.success(result, "Datos reseteados exitosamente"));
     }
-    
+    @PostMapping("/new-loan/{customerId}")
+    public ResponseEntity<ApiResponse<NewLoanDTO>> createNewLoan(
+            @PathVariable String customerId,
+            @Valid @RequestBody NewLoanRequestDTO request) {
+        log.info("Solicitud de nuevo préstamo para cliente: {}", customerId);
+        NewLoanDTO newLoan = newLoanService.createNewLoan(
+        new NewLoanDTO(customerId, request.amount(), request.quotas(), request.rate()));
+        return new ResponseEntity<>(ApiResponse.success(newLoan), HttpStatus.CREATED);
+    }
+
     public record ClaimRequest(
         String customerId,
         String message

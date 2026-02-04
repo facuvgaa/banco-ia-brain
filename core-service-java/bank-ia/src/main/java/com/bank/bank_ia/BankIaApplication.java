@@ -2,17 +2,20 @@ package com.bank.bank_ia;
 
 import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.LoanEntity;
+import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.entities.TransactionEntity;
 import com.bank.bank_ia.enums.AccountType;
 import com.bank.bank_ia.enums.LoanStatus;
 import com.bank.bank_ia.enums.TransactionStatus;
 import com.bank.bank_ia.repositories.AccountRepository;
+import com.bank.bank_ia.repositories.LoanOfferRepository;
 import com.bank.bank_ia.repositories.LoanRepository;
 import com.bank.bank_ia.repositories.TransactionRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,7 +29,13 @@ public class BankIaApplication {
         SpringApplication.run(BankIaApplication.class, args);
     }
 
+    /**
+     * Datos de prueba (orden garantizado con @Order):
+     * - BERNARDO-001: refinanciación (tiene préstamos, cuenta, transacciones; ofertas se crean con POST /reset/{customerId}).
+     * - CARLOS-NO-REF: nuevo préstamo (préstamos con menos de 6 cuotas pagadas = no refinanciable, cuenta, 1 oferta disponible).
+     */
     @Bean
+    @Order(1)
     CommandLineRunner seedTransactions(TransactionRepository repository) {
         return args -> {
             // Verificamos si ya hay datos para no duplicar en cada reinicio
@@ -70,6 +79,7 @@ public class BankIaApplication {
     }
 
     @Bean
+    @Order(2)
     CommandLineRunner seedLoans(LoanRepository loanRepository) {
         return args -> {
             // Verificamos si ya hay datos para no duplicar en cada reinicio
@@ -149,15 +159,47 @@ public class BankIaApplication {
                 loan3Quotas2.setEligibleForRefinance(true);
                 loanRepository.save(loan3Quotas2);
 
+                // Usuario que NO puede refinanciar (< 6 cuotas pagadas) pero tiene oferta para nuevo préstamo
+                String noRefinanceCustomerId = "CARLOS-NO-REF";
+                LoanEntity loanNoRef1 = new LoanEntity();
+                loanNoRef1.setId(UUID.randomUUID());
+                loanNoRef1.setCustomerId(noRefinanceCustomerId);
+                loanNoRef1.setLoanNumber("LOAN-NOREF-001");
+                loanNoRef1.setTotalAmount(new BigDecimal("150000.00"));
+                loanNoRef1.setRemainingAmount(new BigDecimal("120000.00"));
+                loanNoRef1.setQuotaAmount(new BigDecimal("15000.00"));
+                loanNoRef1.setPaidQuotas(2);
+                loanNoRef1.setTotalQuotas(10);
+                loanNoRef1.setStatus(LoanStatus.ACTIVE);
+                loanNoRef1.setStartDate(LocalDateTime.now().minusMonths(3));
+                loanNoRef1.setEligibleForRefinance(false);
+                loanRepository.save(loanNoRef1);
+
+                LoanEntity loanNoRef2 = new LoanEntity();
+                loanNoRef2.setId(UUID.randomUUID());
+                loanNoRef2.setCustomerId(noRefinanceCustomerId);
+                loanNoRef2.setLoanNumber("LOAN-NOREF-002");
+                loanNoRef2.setTotalAmount(new BigDecimal("200000.00"));
+                loanNoRef2.setRemainingAmount(new BigDecimal("160000.00"));
+                loanNoRef2.setQuotaAmount(new BigDecimal("20000.00"));
+                loanNoRef2.setPaidQuotas(2);
+                loanNoRef2.setTotalQuotas(10);
+                loanNoRef2.setStatus(LoanStatus.ACTIVE);
+                loanNoRef2.setStartDate(LocalDateTime.now().minusMonths(2));
+                loanNoRef2.setEligibleForRefinance(false);
+                loanRepository.save(loanNoRef2);
+
                 System.out.println("✅ Datos de prueba de préstamos insertados en Postgres.");
                 System.out.println("   - 1 préstamo habilitado (0 cuotas pagadas)");
                 System.out.println("   - 2 préstamos con 6 cuotas pagadas");
                 System.out.println("   - 2 préstamos con 3 cuotas pagadas");
+                System.out.println("   - Usuario CARLOS-NO-REF: 2 préstamos con 2 cuotas pagadas (no refinanciable)");
             }
         };
     }
 
     @Bean
+    @Order(3)
     CommandLineRunner seedAccounts(AccountRepository accountRepository) {
         return args -> {
             // Verificamos si ya hay una cuenta para BERNARDO-001
@@ -171,6 +213,36 @@ public class BankIaApplication {
                 accountRepository.save(account);
                 
                 System.out.println("✅ Cuenta de prueba creada para BERNARDO-001.");
+            }
+            // Usuario que no puede refinanciar pero tiene oferta para nuevo préstamo
+            if (accountRepository.findByCustomerId("CARLOS-NO-REF").isEmpty()) {
+                AccountEntity account = new AccountEntity();
+                account.setCustomerId("CARLOS-NO-REF");
+                account.setAccountNumber("ACC-NOREF-" + System.currentTimeMillis());
+                account.setBalance(new BigDecimal("50000.00"));
+                account.setAccountType(AccountType.CHECKING);
+                account.setActive(true);
+                accountRepository.save(account);
+                System.out.println("✅ Cuenta de prueba creada para CARLOS-NO-REF (no refinanciable, con oferta disponible).");
+            }
+        };
+    }
+
+    @Bean
+    @Order(4)
+    CommandLineRunner seedLoanOffersNoRefinanceUser(LoanOfferRepository loanOfferRepository) {
+        return args -> {
+            String customerId = "CARLOS-NO-REF";
+            if (loanOfferRepository.findAllByCustomerId(customerId).isEmpty()) {
+                LoanOfferEntity offer = new LoanOfferEntity();
+                offer.setId(UUID.randomUUID());
+                offer.setCustomerId(customerId);
+                offer.setMaxAmount(new BigDecimal("300000.00"));
+                offer.setMaxQuotas(24);
+                offer.setMonthlyRate(new BigDecimal("2.5"));
+                offer.setMinDTI(new BigDecimal("0.3"));
+                loanOfferRepository.save(offer);
+                System.out.println("✅ Oferta de préstamo creada para CARLOS-NO-REF (nuevo préstamo disponible).");
             }
         };
     }

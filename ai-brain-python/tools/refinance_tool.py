@@ -32,7 +32,6 @@ def _get_refinance_context_impl(customer_id: str):
         to_cancel = to_cancel if isinstance(to_cancel, list) else []
     except Exception as e:
         return f"Error al obtener préstamos a refinanciar: {e}"
-
     # 2) Oferta de nuevo préstamo disponible para pagar esos y dar efectivo
     try:
         r_offers = requests.get(f"{JAVA_BASE_URL}/{customer_id}/available-offer", timeout=5)
