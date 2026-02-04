@@ -7,12 +7,22 @@ from contexts.context_builder import (
     get_eligible_loan_ids,
     refinance_success_message,
 )
+
+
 from tools.refinance_tool import (
     _execute_refinance_impl,
     execute_refinance,
     get_refinance_context,
     normalize_execute_refinance_args,
 )
+
+from tools.newLoan import (
+    OfferLoan,
+    execute_new_loan,
+    _execute_new_loan_impl,
+    normalize_new_loan_args
+)
+
 from prompts.promptBrain import get_system_prompt
 import logging
 
@@ -24,8 +34,7 @@ logger = logging.getLogger(__name__)
 class BrainManager:
     def __init__(self) -> None:
         self.model = get_brain_agent()
-        # Solo bind execute_refinance, ya que get_refinance_context lo obtenemos antes
-        self.model_with_tools = self.model.bind_tools([execute_refinance])
+        self.model_with_tools = self.model.bind_tools([execute_refinance, execute_new_loan])
         # Cache simple para respuestas (TTL de 5 minutos)
         self._response_cache: Dict[str, tuple[Any, float]] = {}
         self._cache_ttl: float = 300.0  
@@ -99,32 +108,37 @@ class BrainManager:
                             raw_args = {}
                         logging.debug(f"[claim_id={_tid}] 🔍 Args de tool: {raw_args}")
 
-                        eligible_loan_ids = get_eligible_loan_ids(ctx, customer_id)
-
-                        args = normalize_execute_refinance_args(
-                            raw_args,
-                            customer_id,
-                            loan_number_to_id_map,
-                            eligible_loan_ids,
-                        )
-                        logging.debug(f"[claim_id={_tid}] ✅ Payload normalizado: sourceLoanIds={args.get('sourceLoanIds', [])}")
-
-                        # Ejecutar la tool correspondiente
                         if tool_name == "execute_refinance":
+                            eligible_loan_ids = get_eligible_loan_ids(ctx, customer_id)
+                            args = normalize_execute_refinance_args(
+                                raw_args,
+                                customer_id,
+                                loan_number_to_id_map,
+                                eligible_loan_ids,
+                            )
+                            logging.debug(f"[claim_id={_tid}] ✅ Payload normalizado: sourceLoanIds={args.get('sourceLoanIds', [])}")
                             logging.debug(f"[claim_id={_tid}] 🔧 Ejecutando refinanciación customer_id={customer_id}")
-                            logging.debug(f"[claim_id={_tid}] 🔍 Payload final: {args}")
                             result = _execute_refinance_impl(args)
                             logging.debug(f"[claim_id={_tid}] ✅ Resultado refinanciación: {result}")
                             result_str = str(result).lower()
-                            
-                            # Si la refinanciación fue exitosa, generar respuesta directamente sin invocar el modelo
                             if "éxito" in result_str or "exitoso" in result_str or "success" in result_str or "procesada" in result_str:
                                 logging.debug(f"[claim_id={_tid}] ✅ Refinanciación exitosa, respuesta directa")
                                 amount_credited = args.get("expectedCashOut", 0)
                                 message = refinance_success_message(customer_id, amount_credited)
                                 from langchain_core.messages import AIMessage
                                 return AIMessage(content=message)
-                            
+                            tool_results.append(str(result))
+                        elif tool_name == "execute_new_loan":
+                            args = normalize_new_loan_args(raw_args, customer_id)
+                            logging.debug(f"[claim_id={_tid}] ✅ Payload new loan: amount={args.get('amount')}, quotas={args.get('quotas')}, rate={args.get('rate')}")
+                            logging.debug(f"[claim_id={_tid}] 🔧 Ejecutando nuevo préstamo customer_id={customer_id}")
+                            result = _execute_new_loan_impl(args)
+                            logging.debug(f"[claim_id={_tid}] ✅ Resultado nuevo préstamo: {result}")
+                            result_str = str(result).lower()
+                            if "éxito" in result_str or "creado" in result_str:
+                                logging.debug(f"[claim_id={_tid}] ✅ Nuevo préstamo exitoso, respuesta directa")
+                                from langchain_core.messages import AIMessage
+                                return AIMessage(content="Tu nuevo préstamo fue creado y el monto fue acreditado en tu cuenta.")
                             tool_results.append(str(result))
                         else:
                             logging.debug(f"[claim_id={_tid}] ⚠️ Tool desconocida: {tool_name}")

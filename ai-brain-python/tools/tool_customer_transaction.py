@@ -29,7 +29,7 @@ def _get_customer_transactions_impl(customer_id: str):
         print(error_msg)
         return error_msg
 
-# Crear la herramienta usando Tool.from_function()
+
 get_customer_transactions = Tool.from_function(
     func=_get_customer_transactions_impl,
     name="get_customer_transactions",
