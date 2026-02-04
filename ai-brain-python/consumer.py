@@ -49,10 +49,10 @@ def start_consumer() -> None:
             user_text: str = claim_data.get('message') or claim_data.get('text', '')
             customer_id: str = claim_data.get('customerId') or claim_data.get('clientId') or 'UNKNOWN'
             
-            print(f"📩 Nuevo mensaje de {customer_id}: {user_text}")
+            print(f"📩 Nuevo mensaje de {customer_id}: {user_text} [claim_id={claim_id}]")
 
             try:
-                respuesta = triage.process_chat(user_text, customer_id)
+                respuesta = triage.process_chat(user_text, customer_id, claim_id=claim_id)
                 respuesta_final: str = (
                     respuesta.response_to_user
                     if hasattr(respuesta, "response_to_user")

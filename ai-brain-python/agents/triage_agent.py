@@ -6,6 +6,9 @@ from agents.brain_agent import BrainManager
 
 # Pausa entre llamada a triage y brain cuando SÍ usamos triage (evitar throttling)
 DELAY_BEFORE_SPECIALIST_SECONDS = 5
+# Pausa antes de brain cuando el usuario elige opción (2º mensaje). Bedrock aplica RPM
+# (requests/min); 45s suele bastar si la cuota no es 1 RPM estricto.
+DELAY_BEFORE_CHOICE_BRAIN_SECONDS = 45
 
 # Palabras que indican refinanciación: si el mensaje las tiene, vamos directo al brain (1 llamada Bedrock en vez de 2)
 REFINANCE_KEYWORDS = ("refinanciar", "refinance", "prestamos", "préstamos", "prestamo", "préstamo")
@@ -52,15 +55,17 @@ class TriageManager:
             return True
         return False
 
-    def process_chat(self, text: str, customer_id: str) -> ResultTriage:
+    def process_chat(self, text: str, customer_id: str, claim_id: str = "") -> ResultTriage:
+        _tid = claim_id or "no-claim-id"
         # Fast path: refinanciación o elección de opción -> directo al brain
         if self._is_clear_refinance(text):
-            print("DEBUG: Escalando a especialista por: mensaje de refinanciación (sin triage)")
+            print(f"DEBUG: Escalando a especialista por: mensaje de refinanciación (sin triage) [claim_id={_tid}]")
             brain_response = self.specialist.solve_complex_claim(
                 claim_text=text,
                 customer_id=customer_id,
                 reason="Refinanciación de préstamos",
                 category="Préstamo",
+                claim_id=claim_id,
             )
             response_text = (
                 brain_response.content
@@ -76,12 +81,15 @@ class TriageManager:
 
         # Fast path: cliente elige opción (ej. "la 4", "quiero la opción 4") -> brain debe ejecutar
         if self._is_choosing_refinance_option(text):
-            print("DEBUG: Escalando a especialista por: elección de opción de refinanciación (sin triage)")
+            print(f"DEBUG: Escalando a especialista por: elección de opción de refinanciación (sin triage) [claim_id={_tid}]")
+            print(f"⏳ Esperando {DELAY_BEFORE_CHOICE_BRAIN_SECONDS}s antes de llamar a Bedrock (evitar rate limit)...")
+            time.sleep(DELAY_BEFORE_CHOICE_BRAIN_SECONDS)
             brain_response = self.specialist.solve_complex_claim(
                 claim_text=text,
                 customer_id=customer_id,
                 reason="Refinanciación de préstamos",
                 category="Préstamo",
+                claim_id=claim_id,
             )
             response_text = (
                 brain_response.content
@@ -109,13 +117,14 @@ class TriageManager:
             )
 
         if result.decision == "ESCALATE":
-            print(f"DEBUG: Escalando a especialista por: {result.reason}")
+            print(f"DEBUG: Escalando a especialista por: {result.reason} [claim_id={_tid}]")
             time.sleep(DELAY_BEFORE_SPECIALIST_SECONDS)
             brain_response = self.specialist.solve_complex_claim(
                 claim_text=text,
                 customer_id=customer_id,
                 reason=result.reason,
                 category=result.category,
+                claim_id=claim_id,
             )
             response_text: str = (
                 brain_response.content
