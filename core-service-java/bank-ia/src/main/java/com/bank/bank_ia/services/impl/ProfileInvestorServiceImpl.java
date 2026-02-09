@@ -31,10 +31,12 @@ public class ProfileInvestorServiceImpl implements ProfileInvestorService {
         ProfileInvestorEntity entity = profileInvestorRepository.findByCustomerId(customerId)
             .orElse(new ProfileInvestorEntity());
         entity.setCustomerId(customerId);
-        entity.setRiskLevel(dto.riskLevel());
-        entity.setHasProfile(dto.hasProfile() != null ? dto.hasProfile() : false);
-        entity.setMaxLossPercent(dto.maxLossPercent());
-        entity.setHorizon(dto.horizon());
+        // Solo actualizar campos que vienen con valor (update parcial sin pisar datos existentes)
+        if (dto.riskLevel() != null) entity.setRiskLevel(dto.riskLevel());
+        if (dto.hasProfile() != null) entity.setHasProfile(dto.hasProfile());
+        else if (entity.getHasProfile() == null) entity.setHasProfile(false);
+        if (dto.maxLossPercent() != null) entity.setMaxLossPercent(dto.maxLossPercent());
+        if (dto.horizon() != null) entity.setHorizon(dto.horizon());
         ProfileInvestorEntity saved = profileInvestorRepository.save(entity);
         return new ProfileInvestorDTO(
             saved.getCustomerId(),

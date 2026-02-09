@@ -3,18 +3,22 @@ import time
 from agents_config import get_triangle_agent
 from schemas.schemas import TriageResult
 from agents.brain_agent import BrainManager
-
-# Pausa entre llamada a triage y brain cuando SÍ usamos triage (evitar throttling)
-DELAY_BEFORE_SPECIALIST_SECONDS = 5
-# Pausa antes de brain cuando el usuario elige opción (2º mensaje). Bedrock aplica RPM
-# (requests/min); 45s suele bastar si la cuota no es 1 RPM estricto.
-DELAY_BEFORE_CHOICE_BRAIN_SECONDS = 45
-# Palabras que indican inversiones: fast path directo al brain
-INVESTMENT_KEYWORDS = (
-    "invertir", "inversiones", "inversión", "comprar dolares", "comprar dólares",
-    "fondo comun", "fondo común", "fondos", "acciones", "plazo fijo", "bonos",
-    "perfil de riesgo", "riesgo",
+from tools.investment_tool import (
+    is_investment_session_active,
+    get_profile_investor,
+    _create_profile_impl,
+    _interpret_questionnaire_answer,
+    _build_investment_next_step,
+    mark_investment_session_active,
+    mark_investment_session_complete,
 )
+
+# Pausa entre llamada a triage (Haiku) y brain (Sonnet). Son modelos distintos con
+# cuotas independientes; 2s es suficiente para no pegarle al mismo endpoint demasiado rápido.
+DELAY_BEFORE_SPECIALIST_SECONDS = 2
+# Pausa antes de brain cuando el usuario elige opción (2º mensaje). Reducida porque
+# el flujo de inversiones ya no hace 2ª llamada Bedrock (early return en Python).
+DELAY_BEFORE_CHOICE_BRAIN_SECONDS = 15
 # Palabras que indican refinanciación: si el mensaje las tiene, vamos directo al brain (1 llamada Bedrock en vez de 2)
 REFINANCE_KEYWORDS = ("refinanciar", "refinance", "prestamos", "préstamos", "prestamo", "préstamo")
 REFINANCE_CONTEXT = ("efectivo", "plata", "cuenta", "deudas", "cancelar", "consolidar", "plan")
@@ -60,13 +64,60 @@ class TriageManager:
             return True
         return False
 
-    def _is_clear_investment(self, text: str) -> bool:
-        """Si el mensaje es claramente de inversiones, vamos directo al brain (ahorramos 1 llamada Bedrock)."""
-        t = text.lower().strip()
-        return any(k in t for k in INVESTMENT_KEYWORDS)
-
     def process_chat(self, text: str, customer_id: str, claim_id: str = "") -> ResultTriage:
         _tid = claim_id or "no-claim-id"
+
+        # Fast path: cuestionario de inversión en curso → interpretar en Python (0 LLMs)
+        # Cuando el brain hizo la primera pregunta del cuestionario, marcó la sesión
+        # como activa. Los siguientes mensajes ("medio", "50%", "1 año") se interpretan
+        # directamente en Python con keyword matching, sin llamar a Haiku ni a Sonnet.
+        if is_investment_session_active(customer_id):
+            profile = get_profile_investor(customer_id)
+            parsed = None
+            if isinstance(profile, dict):
+                parsed = _interpret_questionnaire_answer(text, profile)
+
+            if parsed:
+                # Respuesta interpretada → guardar y devolver siguiente pregunta (0 LLMs)
+                args = {"customer_id": customer_id, **parsed}
+                result = _create_profile_impl(args)
+                if isinstance(result, dict):
+                    next_step = _build_investment_next_step(result)
+                    rl = result.get("riskLevel")
+                    ml = result.get("maxLossPercent")
+                    hz = result.get("horizon")
+                    if rl and ml is not None and hz:
+                        mark_investment_session_complete(customer_id)
+                    print(f"DEBUG: Inversión: respuesta interpretada en Python (sin LLM) [claim_id={_tid}]")
+                    return ResultTriage(
+                        decision="ESCALATE",
+                        reason="Cuestionario de inversión - respuesta interpretada",
+                        response_to_user=next_step,
+                        category="INVERSIONES",
+                    )
+
+            # Fallback: no se pudo interpretar → usar el brain (Sonnet) con delay
+            print(f"DEBUG: Inversión: no se pudo interpretar, escalando al brain [claim_id={_tid}]")
+            time.sleep(DELAY_BEFORE_SPECIALIST_SECONDS)
+            brain_response = self.specialist.solve_complex_claim(
+                claim_text=text,
+                customer_id=customer_id,
+                reason="Respuesta de cuestionario de inversión",
+                category="INVERSIONES",
+                claim_id=claim_id,
+            )
+            response_text = (
+                brain_response.content
+                if hasattr(brain_response, "content")
+                else str(brain_response)
+            )
+            return ResultTriage(
+                decision="ESCALATE",
+                reason="Cuestionario de inversión en curso",
+                response_to_user=response_text,
+                category="INVERSIONES",
+            )
+
         # Fast path: refinanciación o elección de opción -> directo al brain
         if self._is_clear_refinance(text):
             print(f"DEBUG: Escalando a especialista por: mensaje de refinanciación (sin triage) [claim_id={_tid}]")
@@ -113,29 +164,7 @@ class TriageManager:
                 category="Préstamo",
             )
 
-        # Fast path: inversiones -> directo al brain
-        if self._is_clear_investment(text):
-            print(f"DEBUG: Escalando a especialista por: mensaje de inversiones (sin triage) [claim_id={_tid}]")
-            time.sleep(DELAY_BEFORE_SPECIALIST_SECONDS)
-            brain_response = self.specialist.solve_complex_claim(
-                claim_text=text,
-                customer_id=customer_id,
-                reason="Inversiones",
-                category="Inversiones",
-                claim_id=claim_id,
-            )
-            response_text = (
-                brain_response.content
-                if hasattr(brain_response, "content")
-                else str(brain_response)
-            )
-            return ResultTriage(
-                decision="ESCALATE",
-                reason="Inversiones",
-                response_to_user=response_text,
-                category="Inversiones",
-            )
-
+        # Inversiones y resto: pasan por el triage (primer LLM), que escala con INVERSIONES si aplica
         result = self.model.invoke([
             (
                 "system",
