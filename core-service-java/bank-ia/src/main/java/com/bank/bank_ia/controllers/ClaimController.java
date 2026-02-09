@@ -138,7 +138,13 @@ public class ClaimController {
         ));
         return ResponseEntity.ok(body);
     }
-    
+    @PostMapping("/new-profile-investor/{customerId}")
+    public ResponseEntity<ProfileInvestorDTO> createNewProfileInvestor(
+        @PathVariable String customerId,
+        @Valid @RequestBody ProfileInvestorDTO request) {
+        ProfileInvestorDTO profileInvestor = profileInvestorService.createOrUpdateProfile(customerId, request);
+        return ResponseEntity.ok(profileInvestor);
+    }
     public record ClaimRequest(
         String customerId,
         String message
