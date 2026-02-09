@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Any, Dict, List
 from botocore.exceptions import ClientError
@@ -23,6 +24,13 @@ from tools.newLoan import (
     normalize_new_loan_args
 )
 
+from tools.investment_tool import (
+    get_risk_profile,
+    create_or_update_profile_investor,
+    get_profile_investor,
+    _create_profile_impl,
+)
+
 from prompts.promptBrain import get_system_prompt
 import logging
 
@@ -34,7 +42,7 @@ logger = logging.getLogger(__name__)
 class BrainManager:
     def __init__(self) -> None:
         self.model = get_brain_agent()
-        self.model_with_tools = self.model.bind_tools([execute_refinance, execute_new_loan])
+        self.model_with_tools = self.model.bind_tools([execute_refinance, execute_new_loan, get_risk_profile, create_or_update_profile_investor])
         # Cache simple para respuestas (TTL de 5 minutos)
         self._response_cache: Dict[str, tuple[Any, float]] = {}
         self._cache_ttl: float = 300.0  
@@ -128,6 +136,22 @@ class BrainManager:
                                 from langchain_core.messages import AIMessage
                                 return AIMessage(content=message)
                             tool_results.append(str(result))
+                        elif tool_name == "get_risk_profile":
+                            logging.debug(f"[claim_id={_tid}] 🔧 Obteniendo perfil inversor customer_id={customer_id}")
+                            result = get_profile_investor(customer_id)
+                            if isinstance(result, dict):
+                                tool_results.append(json.dumps(result, ensure_ascii=False))
+                            else:
+                                tool_results.append(str(result))
+                        elif tool_name == "create_or_update_profile_investor":
+                            args = dict(raw_args) if isinstance(raw_args, dict) else {}
+                            args["customer_id"] = args.get("customer_id") or args.get("customerId") or customer_id
+                            logging.debug(f"[claim_id={_tid}] 🔧 Creando/actualizando perfil inversor customer_id={customer_id}")
+                            result = _create_profile_impl(args)
+                            if isinstance(result, dict):
+                                tool_results.append(json.dumps(result, ensure_ascii=False))
+                            else:
+                                tool_results.append(str(result))
                         elif tool_name == "execute_new_loan":
                             args = normalize_new_loan_args(raw_args, customer_id)
                             logging.debug(f"[claim_id={_tid}] ✅ Payload new loan: amount={args.get('amount')}, quotas={args.get('quotas')}, rate={args.get('rate')}")
