@@ -1,6 +1,7 @@
 package com.bank.bank_ia.controllers;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -17,12 +18,14 @@ import com.bank.bank_ia.dto.TransactionDTO;
 import com.bank.bank_ia.services.ClaimService;
 import com.bank.bank_ia.services.LoanOfferService;
 import com.bank.bank_ia.services.LoanService;
+import com.bank.bank_ia.services.ProfileInvestorService;
 import com.bank.bank_ia.services.RefinanceOperationService;
 import com.bank.bank_ia.dto.ApiResponse;
 import com.bank.bank_ia.dto.LoanDTO;
 import com.bank.bank_ia.dto.LoanOfferDTO;
 import com.bank.bank_ia.dto.NewLoanDTO;
 import com.bank.bank_ia.dto.NewLoanRequestDTO;
+import com.bank.bank_ia.dto.ProfileInvestorDTO;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.dto.RefinanceResponseDTO;
 import com.bank.bank_ia.enums.LoanStatus;
@@ -46,6 +49,7 @@ public class ClaimController {
     private final LoanOfferService loanOfferService;
     private final RefinanceResetService refinanceResetService;
     private final newLoanService newLoanService;
+    private final ProfileInvestorService profileInvestorService;
 
     @PostMapping("/claims")
     public ResponseEntity<ClaimDTO> createClaim(
@@ -122,7 +126,19 @@ public class ClaimController {
         new NewLoanDTO(customerId, request.amount(), request.quotas(), request.rate()));
         return new ResponseEntity<>(ApiResponse.success(newLoan), HttpStatus.CREATED);
     }
-
+    @GetMapping("/profile-investor/{customerId}")
+    public ResponseEntity<ProfileInvestorDTO> getProfileInvestor(@PathVariable String customerId) {
+        Optional<ProfileInvestorDTO> profileInvestor = profileInvestorService.getProfileInvestorByCustomerId(customerId);
+        ProfileInvestorDTO body = profileInvestor.orElse(new ProfileInvestorDTO(
+            customerId,
+            null,
+            false,
+            null,
+            null
+        ));
+        return ResponseEntity.ok(body);
+    }
+    
     public record ClaimRequest(
         String customerId,
         String message
