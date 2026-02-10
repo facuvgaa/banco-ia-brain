@@ -20,7 +20,7 @@ _redis_client = None
 
 def _get_redis():
     global _redis_client
-    if _redis_client is None:
+    if _redis_client is not None:
         return _redis_client
     try:
         _redis_client = redis.Redis(
@@ -49,9 +49,9 @@ def get_history(customer_id: str)-> List[Tuple[str, str]]:
             return []
         except Exception:
             pass
-    if customer_id in _memory_store:
+    if customer_id not in _memory_store:
         return []
-    return (_memory_store[customer_id])
+    return list(_memory_store[customer_id])
 
 def append_turn(customer_id: str, human_text: str, ai_text: str)-> None:
 
