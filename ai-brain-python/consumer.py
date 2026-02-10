@@ -2,6 +2,7 @@ import json
 from typing import Any
 from confluent_kafka import Consumer, Producer
 from agents.triage_agent import TriageManager
+from memory import get_history, append_turn
 
 # --- CONFIGURACIÓN DE KAFKA ---
 consumer = Consumer({
@@ -52,12 +53,19 @@ def start_consumer() -> None:
             print(f"📩 Nuevo mensaje de {customer_id}: {user_text} [claim_id={claim_id}]")
 
             try:
-                respuesta = triage.process_chat(user_text, customer_id, claim_id=claim_id)
+                history = get_history(customer_id)
+                respuesta = triage.process_chat(
+                    user_text,
+                    customer_id,
+                    claim_id=claim_id,
+                    conversation_history=history,
+                )
                 respuesta_final: str = (
                     respuesta.response_to_user
                     if hasattr(respuesta, "response_to_user")
                     else (respuesta.content if hasattr(respuesta, "content") else str(respuesta))
                 )
+                append_turn(customer_id, user_text, respuesta_final)
                 print(f"🤖 IA Responde: {respuesta_final}")
                 send_resolution_to_kafka(claim_id, respuesta_final, "PROCESSED")
             except Exception as e:

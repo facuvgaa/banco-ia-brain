@@ -89,6 +89,7 @@ class BrainManager:
         reason: str,
         category: str,
         claim_id: str = "",
+        conversation_history: Optional[List[tuple[str, str]]] = None,
     ) -> Any:
         _tid = claim_id or "no-claim-id"
         logging.debug(f"[claim_id={_tid}] solve_complex_claim inicio customer_id={customer_id} reason={reason}")
@@ -110,15 +111,19 @@ class BrainManager:
             customer_id, reason, category, getattr(ctx, "best_offer_summary", None) or {}
         )
 
-        messages: List[tuple[str, str]] = [
-            ("system", system_prompt),
+        messages: List[tuple[str, str]] = [("system", system_prompt)]
+        if conversation_history:
+            messages.extend(conversation_history)
+        messages.append(
             ("human", f"ID Cliente: {customer_id}\nConsulta: {claim_text}{context_info}")
-        ]
+        )
 
         try:
-            cache_key = f"{customer_id}:{claim_text[:50]}"
-            cached_response, cache_time = self._response_cache.get(cache_key, (None, 0))
-            if cached_response and (time.time() - cache_time) < self._cache_ttl:
+            cache_key = f"{customer_id}:{claim_text[:50]}" if not conversation_history else None
+            cached_response, cache_time = (
+                self._response_cache.get(cache_key, (None, 0)) if cache_key else (None, 0)
+            )
+            if cache_key and cached_response and (time.time() - cache_time) < self._cache_ttl:
                 logging.debug(f"[claim_id={_tid}] 💾 Usando respuesta cacheada")
                 return cached_response
             
@@ -133,8 +138,8 @@ class BrainManager:
             tool_calls = getattr(response, 'tool_calls', None) or []
             logging.debug(f"[claim_id={_tid}] 🔍 Tool calls: {len(tool_calls)}")
             
-            # Cachear respuesta si no tiene tool calls
-            if not tool_calls:
+            # Cachear respuesta si no tiene tool calls y no hay historial
+            if not tool_calls and cache_key:
                 self._response_cache[cache_key] = (response, time.time())
             
             if tool_calls:

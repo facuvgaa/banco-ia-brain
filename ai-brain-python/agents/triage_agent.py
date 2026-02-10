@@ -64,8 +64,15 @@ class TriageManager:
             return True
         return False
 
-    def process_chat(self, text: str, customer_id: str, claim_id: str = "") -> ResultTriage:
+    def process_chat(
+        self,
+        text: str,
+        customer_id: str,
+        claim_id: str = "",
+        conversation_history: list[tuple[str, str]] | None = None,
+    ) -> ResultTriage:
         _tid = claim_id or "no-claim-id"
+        _history = conversation_history or []
 
         # Fast path: cuestionario de inversión en curso → interpretar en Python (0 LLMs)
         # Cuando el brain hizo la primera pregunta del cuestionario, marcó la sesión
@@ -105,6 +112,7 @@ class TriageManager:
                 reason="Respuesta de cuestionario de inversión",
                 category="INVERSIONES",
                 claim_id=claim_id,
+                conversation_history=_history,
             )
             response_text = (
                 brain_response.content
@@ -127,6 +135,7 @@ class TriageManager:
                 reason="Refinanciación de préstamos",
                 category="Préstamo",
                 claim_id=claim_id,
+                conversation_history=_history,
             )
             response_text = (
                 brain_response.content
@@ -151,6 +160,7 @@ class TriageManager:
                 reason="Refinanciación de préstamos",
                 category="Préstamo",
                 claim_id=claim_id,
+                conversation_history=_history,
             )
             response_text = (
                 brain_response.content
@@ -192,6 +202,7 @@ class TriageManager:
                 reason=result.reason,
                 category=result.category,
                 claim_id=claim_id,
+                conversation_history=_history,
             )
             response_text: str = (
                 brain_response.content
