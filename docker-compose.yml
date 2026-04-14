@@ -1,12 +1,12 @@
 services:
 
   redis:
-    image: redis:7.4.1-alpine
-    container_name: banco-redis
-    ports:
-      - 6379:6379
-    volumes:
-      - redis_data:/var/lib/redis/data
+   image: redis/redis-stack:latest
+   container_name: redis_memory
+   ports:
+   - "6379:6379"
+   volumes:
+   - redis_data_conversation:/var/lib/redis/data
 
   postgres:
     image: postgres:15
