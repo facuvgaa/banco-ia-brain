@@ -20,6 +20,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  postgres_conversation:
+    image: postgres:15
+    container_name: conversation-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: banco_db
+    volumes:
+      - postgrest_data_bank_conversation:/var/lib/postgresql/data
+
+  
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: banco-kafka
