@@ -1,2 +1,6 @@
 asyncio
 aiokafka
+langchain-aws
+langchain-core
+langchain
+boto3
