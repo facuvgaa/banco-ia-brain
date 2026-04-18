@@ -1,40 +1,47 @@
 <script setup>
 import { ref } from 'vue'
 import ChatHeader from './components/ChatHeader.vue'
+import axios from 'axios'
 
-// --- LÓGICA DE REACTIVIDAD ---
-const isThinking = ref(false) // El estado de la pelotita
-const newMessage = ref('')     // Lo que escribís en el input
+const isThinking = ref(false) 
+const newMessage = ref('')
 
-// Lista inicial de mensajes
 const messages = ref([
   { id: 1, text: "¡Hola perro! Sistema Moustro_Bank activo. ¿Qué consulta tenés?", sender: 'ai' }
 ])
 
-// Función para enviar mensajes (Simulada por ahora)
-const handleSendMessage = () => {
+const handleSendMessage = async () => {
   if (!newMessage.value.trim()) return
 
-  // 1. Agregamos el tuyo
-  messages.value.push({
-    id: Date.now(),
-    text: newMessage.value,
-    sender: 'user'
-  })
-
-  isThinking.value = true
   const userText = newMessage.value
-  newMessage.value = '' // Limpiamos el input
+  messages.value.push({ id: Date.now(), text: userText, sender: 'user' })
+  
+  isThinking.value = true
+  newMessage.value = ''
 
-  // 3. Simulamos la respuesta del backend (Java/Kafka/Python)
-  setTimeout(() => {
-    isThinking.value = false // Apagamos la pelotita
+  try {
+   
+    const response = await axios.post('http://localhost:8080/api/chat', {
+      prompt: userText
+    })
+
+    
     messages.value.push({
-      id: Date.now() + 1,
-      text: `Procesé tu pedido sobre: "${userText}". El cluster está respondiendo correctamente via AWS Bedrock.`,
+      id: Date.now(),
+      text: response.data.reply, 
       sender: 'ai'
     })
-  }, 2000)
+  } catch (error) {
+    
+    console.error("Error conectando con el cluster:", error)
+    messages.value.push({
+      id: Date.now(),
+      text: "Error de conexión. ¿Levantaste el backend de Java, facha?",
+      sender: 'ai'
+    })
+  } finally {
+    isThinking.value = false
+  }
 }
 </script>
 
