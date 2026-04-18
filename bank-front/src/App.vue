@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import ChatHeader from './components/ChatHeader.vue'
+import { chatService } from './services/api'
 import axios from 'axios'
 
 const isThinking = ref(false) 
@@ -21,10 +22,7 @@ const handleSendMessage = async () => {
 
   try {
    
-    const response = await axios.post('http://localhost:8080/api/chat', {
-      prompt: userText
-    })
-
+    const response = await chatService.sendMessage(userText)
     
     messages.value.push({
       id: Date.now(),
