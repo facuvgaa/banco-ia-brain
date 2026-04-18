@@ -5,7 +5,10 @@ const api = axios.create({
 })
 
 export const chatService = {
-    sendMessage(text){
-        return api.post('/chat', {prompt: text})
+    sendMessage(text, userId = "facuvega-001"){
+        return api.post('/chat', {
+            contenido: text,
+            customerId: userId
+        })
     }
 }

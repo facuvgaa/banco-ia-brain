@@ -53,3 +53,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  redis_data_conversation:
+  postgrest_data_bank_conversation:
