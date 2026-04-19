@@ -1,14 +1,14 @@
 import asyncio
 import logging
 from common.kafka_config import get_consumer, get_producer
-from logic import get_classification # Tu lógica con Haiku
+from logic import get_classification
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def run_classifier():
     
-    
+
     consumer = get_consumer('chat-queries', 'classifier-group')
     producer = get_producer()
 
