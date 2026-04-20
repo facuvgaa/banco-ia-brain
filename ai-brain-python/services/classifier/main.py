@@ -18,14 +18,20 @@ async def run_classifier():
     try:
         async for msg in consumer:
             data = msg.value
+            customer_id = data.get('customerId')
             content = data.get('contenido')
-            
-            
-            target_stream = get_classification(content)
-            
-            logger.info(f"📥 De: {data['customerId']} -> Intención: {target_stream}")
 
-        
+            session_key = f"session:{customer_id}"
+            target_stream = await redis.get(session_key)
+
+            if target_stream:
+                target_stream = target_stream.decode()
+                logger.info(f"📥 De: {customer_id} -> Sesión activa: {target_stream}")
+            else:
+                target_stream = get_classification(content)
+                await redis.set(session_key, target_stream, ex=1800)
+                logger.info(f"📥 De: {customer_id} -> Clasificado: {target_stream}")
+
             await redis.xadd(target_stream, data)
             
     except Exception as e:

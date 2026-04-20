@@ -2,6 +2,8 @@ asyncio
 aiokafka
 langchain-aws
 langchain-core
+langgraph
+langgraph-checkpoint-redis
 langchain
 boto3
 redis
