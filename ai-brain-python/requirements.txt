@@ -4,3 +4,4 @@ langchain-aws
 langchain-core
 langchain
 boto3
+redis
