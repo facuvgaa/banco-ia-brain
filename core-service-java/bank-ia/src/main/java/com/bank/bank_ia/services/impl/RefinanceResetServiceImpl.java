@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.bank_ia.config.LoanConstants;
 import com.bank.bank_ia.config.RefinanceProperties;
-import com.bank.bank_ia.entities.AccountEntity;
 import com.bank.bank_ia.entities.LoanEntity;
 import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.enums.LoanStatus;
@@ -128,24 +127,29 @@ public class RefinanceResetServiceImpl implements RefinanceResetService {
     }
 
     /**
-     * Asegura estado demo para FACU-001/002 (aunque ya estuvieran ACTIVE o vengan de restore).
+     * Asegura estado demo para FACU-001/002 (aunque ya estuvieran ACTIVE o vengan de restore);
+     * crea las filas si faltan.
      */
     private void syncFacuvegaDemoLoansIfApplicable(String customerId) {
         if (!FACU_DEMO_CUSTOMER.equals(customerId)) {
             return;
         }
-        List<LoanEntity> toSave =
-                loanRepository.findAllByCustomerId(customerId).stream()
-                        .filter(loan -> isFacuDemoNumber(loan.getLoanNumber()))
-                        .map(
-                                loan -> {
-                                    applyFacuDemoState(loan);
-                                    return loan;
-                                })
-                        .toList();
-        if (!toSave.isEmpty()) {
-            loanRepository.saveAll(toSave);
-            log.info("Sincronizados {} préstamos FACU-* a demo (2×500k, TNA 80%%)", toSave.size());
+        var all = loanRepository.findAllByCustomerId(customerId);
+        for (String num : List.of("FACU-001", "FACU-002")) {
+            var existing =
+                    all.stream().filter(l -> num.equals(l.getLoanNumber())).findFirst();
+            if (existing.isEmpty()) {
+                LoanEntity created = new LoanEntity();
+                created.setId(UUID.randomUUID());
+                created.setCustomerId(customerId);
+                created.setLoanNumber(num);
+                applyFacuDemoState(created);
+                loanRepository.save(created);
+                log.info("Creado préstamo demo {}", num);
+            } else {
+                applyFacuDemoState(existing.get());
+                loanRepository.save(existing.get());
+            }
         }
     }
 
