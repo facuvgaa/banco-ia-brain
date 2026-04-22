@@ -3,6 +3,7 @@ import logging
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from common.redis_config import get_redis, get_checkpointer
+from common.post_close_kafka import send_reply_set_post_close_if_marker
 from common.kafka_config import (
     get_producer,
     send_chat_response,
@@ -120,13 +121,15 @@ async def run():
                                 if hasattr(first, "value")
                                 else getattr(first, "value", first)
                             )
-                            await send_chat_response(
-                                producer, customer_id, str(pregunta)
+                            await send_reply_set_post_close_if_marker(
+                                redis, producer, customer_id, str(pregunta)
                             )
                         elif isinstance(state, dict) and state.get("messages"):
                             raw = state["messages"][-1].content
                             text = _text_from_message_content(raw)
-                            await send_chat_response(producer, customer_id, text)
+                            await send_reply_set_post_close_if_marker(
+                                redis, producer, customer_id, text
+                            )
                             try:
                                 await save_conversation(
                                     customer_id, "loans", state["messages"]
@@ -175,8 +178,11 @@ async def resume(customer_id: str, respuesta_usuario: str):
         )
         state = _state_from_graph_result(result)
         raw = state["messages"][-1].content if isinstance(state, dict) else ""
-        await send_chat_response(
-            producer, customer_id, _text_from_message_content(raw)
+        await send_reply_set_post_close_if_marker(
+            redis,
+            producer,
+            customer_id,
+            _text_from_message_content(raw),
         )
         await producer.stop()
 

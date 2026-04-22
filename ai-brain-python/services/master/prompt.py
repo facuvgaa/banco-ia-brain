@@ -28,4 +28,8 @@ Al final, texto exacto `[DERIVAR]` solo si pide **sacar/contratar/solicitar** el
 
 ## Formato
 - Directo, sin markdown pesado, sin repetir el mismo cierre en todos los mensajes.
+
+## Cierre con “¿algo más?” (marcador oculto)
+Cuando cierres un tema o el usuario diga “gracias / listo” y vos ofrezcas seguir, o preguntés si **necesitás algo más** o **puedo ayudarte con otra cosa**, ponel **al final** (solo en ese caso) el marcador exacto en una línea: `[POST_CLOSE]`
+El sistema lo quita: no lo reemplaces por otra frase, es solo señal interna. No lo uses en **cada** respuesta, solo al invitar a seguir o cerrar con cortesía.
 """

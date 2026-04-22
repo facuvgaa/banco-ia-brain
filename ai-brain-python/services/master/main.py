@@ -4,6 +4,7 @@ import os
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.redis import AsyncRedisSaver
 from common.redis_config import get_redis
+from common.post_close_kafka import send_reply_set_post_close_if_marker
 from common.kafka_config import (
     get_producer,
     send_chat_response,
@@ -93,7 +94,9 @@ async def run_master():
                             )
                             logger.info("➡️ Derivando %s a brain", customer_id)
                         else:
-                            await send_chat_response(producer, customer_id, respuesta)
+                            await send_reply_set_post_close_if_marker(
+                                redis, producer, customer_id, respuesta
+                            )
                             try:
                                 await save_conversation(
                                     customer_id, "master", result["messages"]
