@@ -127,7 +127,9 @@ class RefinanceOperationServiceImplTest {
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
         when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
-        when(loanBuilder.buildRefinanceLoan(eq(request), eq(new BigDecimal("500000.00")))).thenReturn(newLoan);
+        when(loanBuilder.buildRefinanceLoan(
+                        eq(request), eq(new BigDecimal("500000.00")), eq(new BigDecimal("75.0"))))
+                .thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -140,6 +142,7 @@ class RefinanceOperationServiceImplTest {
         assertThat(response.newLoanId()).isEqualTo(newLoan.getId());
         assertThat(response.totalDebtCanceled()).isEqualByComparingTo(new BigDecimal("400000.00"));
         assertThat(response.cashOut()).isEqualByComparingTo(new BigDecimal("100000.00"));
+        assertThat(response.appliedNominalAnnualRate()).isEqualByComparingTo(new BigDecimal("75.0"));
 
         verify(loanOfferRepository, times(2)).findAllByCustomerId(customerId);
         verify(loanOfferRepository).deleteAll(offers);
@@ -147,7 +150,9 @@ class RefinanceOperationServiceImplTest {
         verify(refinanceValidator).validate(request, oldLoans);
         verify(refinanceValidator).validateAndGetMatchingOffer(eq(request), eq(offers), eq(new BigDecimal("400000.00")));
         verify(loanRepository).saveAll(oldLoans);
-        verify(loanBuilder).buildRefinanceLoan(eq(request), eq(new BigDecimal("500000.00")));
+        verify(loanBuilder)
+                .buildRefinanceLoan(
+                        eq(request), eq(new BigDecimal("500000.00")), eq(new BigDecimal("75.0")));
         verify(loanRepository).save(newLoan);
         verify(accountService).addBalance(eq(customerId), eq(new BigDecimal("100000.00")), anyString());
     }
@@ -163,7 +168,8 @@ class RefinanceOperationServiceImplTest {
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
         when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
-        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class))).thenReturn(newLoan);
+        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class), any(BigDecimal.class)))
+                .thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -185,7 +191,8 @@ class RefinanceOperationServiceImplTest {
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
         when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
-        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class))).thenReturn(newLoan);
+        when(loanBuilder.buildRefinanceLoan(any(), any(BigDecimal.class), any(BigDecimal.class)))
+                .thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -246,7 +253,9 @@ class RefinanceOperationServiceImplTest {
         when(loanRepository.findAllByIdIn(anyList())).thenReturn(oldLoans);
         doNothing().when(refinanceValidator).validate(any(), anyList());
         when(refinanceValidator.validateAndGetMatchingOffer(any(), anyList(), any())).thenReturn(matchingOffer);
-        when(loanBuilder.buildRefinanceLoan(any(), eq(new BigDecimal("500000.00")))).thenReturn(newLoan);
+        when(loanBuilder.buildRefinanceLoan(
+                        any(), eq(new BigDecimal("500000.00")), eq(new BigDecimal("75.0"))))
+                .thenReturn(newLoan);
         when(loanRepository.save(any(LoanEntity.class))).thenReturn(newLoan);
         doNothing().when(accountService).addBalance(anyString(), any(BigDecimal.class), anyString());
 
@@ -266,7 +275,7 @@ class RefinanceOperationServiceImplTest {
         loan.setTotalAmount(remainingAmount.multiply(new BigDecimal("2")));
         loan.setRemainingAmount(remainingAmount);
         loan.setQuotaAmount(new BigDecimal("10000.00"));
-        loan.setPaidQuotas(0);
+        loan.setPaidQuotas(6);
         loan.setTotalQuotas(10);
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());

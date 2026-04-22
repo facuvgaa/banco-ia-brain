@@ -1,24 +1,69 @@
 services:
 
+  # ─── Front ──────────
+
+  frontend:
+    build:
+      context: ./bank-front
+      args:
+        # El navegador hace el fetch: debe apuntar al host, no a core-service (DNS interno de Docker)
+        VITE_API_URL: http://localhost:8080/api
+    ports:
+      - "5173:80"
+
+
+  # ─── Back ──────────
+
+  backend:
+    build:
+      context: ./core-service-java/bank-ia
+    container_name: core-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banco_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+
+
+  # ─── Infraestructura ────────────────────────────────────────────────────────
+
   redis:
-   image: redis/redis-stack:latest
-   container_name: redis_memory
-   ports:
-   - "6379:6379"
-   volumes:
-   - redis_data_conversation:/var/lib/redis/data
+    image: redis/redis-stack:latest
+    container_name: redis_memory
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/var/lib/redis/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   postgres:
     image: postgres:15
     container_name: banco-db
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
       POSTGRES_DB: banco_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d banco_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   postgres_conversation:
     image: postgres:15
@@ -30,9 +75,13 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: banco_db
     volumes:
-      - postgrest_data_bank_conversation:/var/lib/postgresql/data
+      - postgres_conversation_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d banco_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: banco-kafka
@@ -43,15 +92,93 @@ services:
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
       KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Servicios Python ───────────────────────────────────────────────────────
+
+  classifier:
+    build:
+      context: ./ai-brain-python
+      dockerfile: Dockerfile
+    container_name: moustro-classifier
+    command: ["python", "-m", "services.classifier.main"]
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  master:
+    build:
+      context: ./ai-brain-python
+      dockerfile: Dockerfile
+    container_name: moustro-master
+    command: ["python", "-m", "services.master.main"]
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      POSTGRES_CONVERSATION_URL: postgresql://admin:password@postgres_conversation:5432/banco_db
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres_conversation:
+        condition: service_healthy
+    restart: on-failure
+
+  brain:
+    build:
+      context: ./ai-brain-python
+      dockerfile: Dockerfile
+    container_name: moustro-brain
+    command: ["python", "-m", "services.brain.main"]
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  workflow-loans:
+    build:
+      context: ./ai-brain-python
+      dockerfile: Dockerfile
+    container_name: moustro-workflow-loans
+    command: ["python", "-m", "services.brain.workflows.loans.main"]
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      POSTGRES_CONVERSATION_URL: postgresql://admin:password@postgres_conversation:5432/banco_db
+      CORE_API_URL: http://core-service:8080/api/v1/bank-ia
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres_conversation:
+        condition: service_healthy
+    restart: on-failure
 
 volumes:
   postgres_data:
+  postgres_conversation_data:
   redis_data:
-  redis_data_conversation:
-  postgrest_data_bank_conversation:

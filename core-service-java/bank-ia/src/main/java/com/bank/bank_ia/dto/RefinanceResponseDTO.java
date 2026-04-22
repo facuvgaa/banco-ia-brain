@@ -14,6 +14,8 @@ public record RefinanceResponseDTO(
     String newLoanNumber,
     BigDecimal totalDebtCanceled,
     BigDecimal cashOut,
+    /** TNA % aplicada al nuevo préstamo. */
+    BigDecimal appliedNominalAnnualRate,
     LocalDateTime timestamp
 ) {
     public static RefinanceResponseDTO of(
@@ -21,7 +23,8 @@ public record RefinanceResponseDTO(
             UUID newLoanId,
             String newLoanNumber,
             BigDecimal totalDebtCanceled,
-            BigDecimal cashOut) {
+            BigDecimal cashOut,
+            BigDecimal appliedNominalAnnualRate) {
         return new RefinanceResponseDTO(
             "Refinanciación exitosa",
             customerId,
@@ -29,6 +32,7 @@ public record RefinanceResponseDTO(
             newLoanNumber,
             totalDebtCanceled,
             cashOut,
+            appliedNominalAnnualRate,
             LocalDateTime.now()
         );
     }

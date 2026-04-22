@@ -1,10 +1,8 @@
-PROMPT_BRAIN_CLS = """Sos un clasificador de intenciones para un asistente financiero.
-Analizá el mensaje del usuario y respondé ÚNICAMENTE con una de estas opciones exactas:
+# Hoy solo está desplegado el workflow de préstamos (workflow_loans).
+PROMPT_BRAIN_CLS = """Sos un router mínimo. Hoy solo existe un workflow activo: **préstamos** (workflow_loans).
 
-- workflow_prestamos
-- workflow_tarjetas
-- workflow_cuentas
+Respondé EXACTAMENTE esta palabra y nada más:
 
-Mensaje: {message_content}
+workflow_loans
 
-Respondé solo con la opción exacta, sin explicaciones."""
+Mensaje (por contexto futuro): {message_content}"""

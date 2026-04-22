@@ -23,12 +23,12 @@ public class ChatController {
     private ChatProducerService producerService;
 
     @PostMapping("/chat")
-    public ResponseEntity<Map<String, String>> handleChat(@RequestBody ChatRequestDTO request) {
+    public ResponseEntity<Map<String, Object>> handleChat(@RequestBody ChatRequestDTO request) {
 
         producerService.enviarMensaje(request);
 
-        Map<String, String> response = new HashMap<>();
-        response.put("reply", "Mensaje encolado correctamente");
-        return ResponseEntity.ok(response);
+        Map<String, Object> response = new HashMap<>();
+        response.put("queued", true);
+        return ResponseEntity.accepted().body(response);
     }
 }

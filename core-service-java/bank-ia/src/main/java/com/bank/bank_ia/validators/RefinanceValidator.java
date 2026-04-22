@@ -10,6 +10,7 @@ import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.entities.LoanEntity;
 import com.bank.bank_ia.entities.LoanOfferEntity;
 import com.bank.bank_ia.exceptions.InvalidRefinanceException;
+import com.bank.bank_ia.config.RefinanceProperties;
 import com.bank.bank_ia.exceptions.LoanNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class RefinanceValidator {
+
+    private final RefinanceProperties refinanceProperties;
     
     /**
      * Valida que la solicitud de refinanciación sea válida.
@@ -31,7 +34,17 @@ public class RefinanceValidator {
         validateLoanList(request.sourceLoanIds());
         validateLoansFound(loans, request.sourceLoanIds());
         validateLoanOwnership(loans, request.customerId());
+        validatePaidQuotasForRefinance(loans);
         validateAmount(request.offeredAmount(), calculateTotalDebt(loans));
+    }
+
+    private void validatePaidQuotasForRefinance(List<LoanEntity> loans) {
+        int min = refinanceProperties.getMinPaidQuotasForRefinance();
+        for (LoanEntity loan : loans) {
+            if (!refinanceProperties.isPaidQuotasSufficientForRefinance(loan.getPaidQuotas())) {
+                throw InvalidRefinanceException.insufficientPaidQuotas(min);
+            }
+        }
     }
     
     private void validateLoanList(List<UUID> loanIds) {

@@ -1,10 +1,17 @@
 package com.bank.bank_ia.dto;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
-public record LoanOfferDTO (
-    BigDecimal maxAmount,    
-    Integer maxQuotas,       
-    BigDecimal monthlyRate,  
+/**
+ * Ofertas de préstamo. {@code monthlyRate} conserva el nombre de columna en BD; {@code annualNominalRate} es TNA % (mismo valor de negocio en esta demo).
+ */
+public record LoanOfferDTO(
+    UUID id,
+    BigDecimal maxAmount,
+    Integer maxQuotas,
+    BigDecimal monthlyRate,
+    BigDecimal annualNominalRate,
     BigDecimal minDTI
-){}
+) {
+}

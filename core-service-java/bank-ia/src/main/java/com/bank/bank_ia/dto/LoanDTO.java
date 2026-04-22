@@ -14,5 +14,6 @@ public record LoanDTO(
     Integer totalQuotas,       
     String status,             
     LocalDateTime startDate,   
-    boolean isEligibleForRefinance 
+    boolean isEligibleForRefinance,
+    BigDecimal nominalAnnualRate
 ) {}

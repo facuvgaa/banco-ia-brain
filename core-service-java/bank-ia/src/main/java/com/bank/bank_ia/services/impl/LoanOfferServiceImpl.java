@@ -21,12 +21,17 @@ public class LoanOfferServiceImpl implements LoanOfferService {
     public List<LoanOfferDTO> getLoanOffersByCustomerId(String customerId) {
         return loanOfferRepository.findAllByCustomerId(customerId)
         .stream()
-        .map(entity -> new LoanOfferDTO(
-            entity.getMaxAmount(),
-            entity.getMaxQuotas(),
-            entity.getMonthlyRate(),
-            entity.getMinDTI()
-        ))
+        .map(entity -> {
+            var tna = entity.getMonthlyRate();
+            return new LoanOfferDTO(
+                entity.getId(),
+                entity.getMaxAmount(),
+                entity.getMaxQuotas(),
+                tna,
+                tna,
+                entity.getMinDTI()
+            );
+        })
         .collect(Collectors.toList());
     }
 

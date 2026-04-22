@@ -41,7 +41,8 @@ public class newLoanServiceImpl implements newLoanService {
         }
 
         LoanEntity newLoan = Objects.requireNonNull(
-            loanBuilder.buildNewLoan(request.customerId(), request.amount(), request.quotas()));
+            loanBuilder.buildNewLoan(
+                request.customerId(), request.amount(), request.quotas(), request.rate()));
         LoanEntity savedLoan = loanRepository.save(newLoan);
 
         loanOfferService.deleteAllByCustomerId(request.customerId());

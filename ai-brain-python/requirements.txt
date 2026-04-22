@@ -7,3 +7,6 @@ langgraph-checkpoint-redis
 langchain
 boto3
 redis
+asyncpg
+python-dotenv
+httpx

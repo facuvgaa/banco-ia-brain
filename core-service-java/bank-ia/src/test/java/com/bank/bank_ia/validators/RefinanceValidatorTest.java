@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.bank.bank_ia.config.RefinanceProperties;
 import com.bank.bank_ia.dto.RefinanceOperationDTO;
 import com.bank.bank_ia.entities.LoanEntity;
 import com.bank.bank_ia.enums.LoanStatus;
@@ -28,7 +29,7 @@ class RefinanceValidatorTest {
 
     @BeforeEach
     void setUp() {
-        validator = new RefinanceValidator();
+        validator = new RefinanceValidator(new RefinanceProperties());
         customerId = "CUSTOMER-001";
         loanId1 = UUID.randomUUID();
         loanId2 = UUID.randomUUID();
@@ -197,7 +198,7 @@ class RefinanceValidatorTest {
         loan.setTotalAmount(remainingAmount.multiply(new BigDecimal("2")));
         loan.setRemainingAmount(remainingAmount);
         loan.setQuotaAmount(new BigDecimal("10000.00"));
-        loan.setPaidQuotas(0);
+        loan.setPaidQuotas(6);
         loan.setTotalQuotas(10);
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setEligibleForRefinance(true);

@@ -19,6 +19,7 @@ import org.springframework.core.annotation.Order;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -97,6 +98,7 @@ public class BankIaApplication {
                 activeLoan.setStatus(LoanStatus.ACTIVE);
                 activeLoan.setStartDate(LocalDateTime.now().minusMonths(1));
                 activeLoan.setEligibleForRefinance(true);
+                activeLoan.setNominalAnnualRate(new BigDecimal("80.0"));
                 loanRepository.save(activeLoan);
 
                 // 2. Préstamo con 6 cuotas pagadas
@@ -112,6 +114,7 @@ public class BankIaApplication {
                 loan6Quotas1.setStatus(LoanStatus.ACTIVE);
                 loan6Quotas1.setStartDate(LocalDateTime.now().minusMonths(7));
                 loan6Quotas1.setEligibleForRefinance(true);
+                loan6Quotas1.setNominalAnnualRate(new BigDecimal("78.0"));
                 loanRepository.save(loan6Quotas1);
 
                 // 3. Otro préstamo con 6 cuotas pagadas
@@ -127,6 +130,7 @@ public class BankIaApplication {
                 loan6Quotas2.setStatus(LoanStatus.ACTIVE);
                 loan6Quotas2.setStartDate(LocalDateTime.now().minusMonths(8));
                 loan6Quotas2.setEligibleForRefinance(true);
+                loan6Quotas2.setNominalAnnualRate(new BigDecimal("78.0"));
                 loanRepository.save(loan6Quotas2);
 
                 // 4. Préstamo con 3 cuotas pagadas
@@ -142,6 +146,7 @@ public class BankIaApplication {
                 loan3Quotas1.setStatus(LoanStatus.ACTIVE);
                 loan3Quotas1.setStartDate(LocalDateTime.now().minusMonths(4));
                 loan3Quotas1.setEligibleForRefinance(true);
+                loan3Quotas1.setNominalAnnualRate(new BigDecimal("76.0"));
                 loanRepository.save(loan3Quotas1);
 
                 // 5. Otro préstamo con 3 cuotas pagadas
@@ -157,6 +162,7 @@ public class BankIaApplication {
                 loan3Quotas2.setStatus(LoanStatus.ACTIVE);
                 loan3Quotas2.setStartDate(LocalDateTime.now().minusMonths(5));
                 loan3Quotas2.setEligibleForRefinance(true);
+                loan3Quotas2.setNominalAnnualRate(new BigDecimal("75.0"));
                 loanRepository.save(loan3Quotas2);
 
                 // Usuario que NO puede refinanciar (< 6 cuotas pagadas) pero tiene oferta para nuevo préstamo
@@ -173,6 +179,7 @@ public class BankIaApplication {
                 loanNoRef1.setStatus(LoanStatus.ACTIVE);
                 loanNoRef1.setStartDate(LocalDateTime.now().minusMonths(3));
                 loanNoRef1.setEligibleForRefinance(false);
+                loanNoRef1.setNominalAnnualRate(new BigDecimal("90.0"));
                 loanRepository.save(loanNoRef1);
 
                 LoanEntity loanNoRef2 = new LoanEntity();
@@ -187,6 +194,7 @@ public class BankIaApplication {
                 loanNoRef2.setStatus(LoanStatus.ACTIVE);
                 loanNoRef2.setStartDate(LocalDateTime.now().minusMonths(2));
                 loanNoRef2.setEligibleForRefinance(false);
+                loanNoRef2.setNominalAnnualRate(new BigDecimal("88.0"));
                 loanRepository.save(loanNoRef2);
 
                 System.out.println("✅ Datos de prueba de préstamos insertados en Postgres.");
@@ -225,6 +233,17 @@ public class BankIaApplication {
                 accountRepository.save(account);
                 System.out.println("✅ Cuenta de prueba creada para CARLOS-NO-REF (no refinanciable, con oferta disponible).");
             }
+            // Chat / demo: refinancio acredita cash-out vía AccountService.addBalance
+            if (accountRepository.findByCustomerId("facuvega-001").isEmpty()) {
+                AccountEntity account = new AccountEntity();
+                account.setCustomerId("facuvega-001");
+                account.setAccountNumber("ACC-FACU-" + System.currentTimeMillis());
+                account.setBalance(new BigDecimal("0.00"));
+                account.setAccountType(AccountType.CHECKING);
+                account.setActive(true);
+                accountRepository.save(account);
+                System.out.println("✅ Cuenta de prueba creada para facuvega-001.");
+            }
         };
     }
 
@@ -245,5 +264,59 @@ public class BankIaApplication {
                 System.out.println("✅ Oferta de préstamo creada para CARLOS-NO-REF (nuevo préstamo disponible).");
             }
         };
+    }
+
+    /**
+     * Mismo universo de prueba que BERNARDO-001, para el customerId del chat (facuvega-001):
+     * préstamo refinanciable + ofertas, si aún no hay filas.
+     */
+    @Bean
+    @Order(5)
+    CommandLineRunner seedFacuvegaChatUser(LoanRepository loanRepository, LoanOfferRepository loanOfferRepository) {
+        return args -> {
+            String customerId = "facuvega-001";
+            if (loanRepository.findAllByCustomerId(customerId).isEmpty()) {
+                // Dos préstamos de $500.000, TNA 80%, 6/10 cuotas pagas → refinanciables (mismo perfil c/u)
+                for (String num : List.of("FACU-001", "FACU-002")) {
+                    LoanEntity t = new LoanEntity();
+                    t.setId(UUID.randomUUID());
+                    t.setCustomerId(customerId);
+                    t.setLoanNumber(num);
+                    t.setTotalAmount(new BigDecimal("500000.00"));
+                    t.setRemainingAmount(new BigDecimal("200000.00"));
+                    t.setQuotaAmount(new BigDecimal("50000.00"));
+                    t.setPaidQuotas(6);
+                    t.setTotalQuotas(10);
+                    t.setStatus(LoanStatus.ACTIVE);
+                    t.setStartDate(LocalDateTime.now().minusMonths(6));
+                    t.setEligibleForRefinance(true);
+                    t.setNominalAnnualRate(new BigDecimal("80.0"));
+                    loanRepository.save(t);
+                }
+                System.out.println("✅ Préstamos de demo insertados para facuvega-001 (2×$500k, TNA 80%, 6/10, refinanciables).");
+            }
+            if (loanOfferRepository.findAllByCustomerId(customerId).isEmpty()) {
+                List<LoanOfferEntity> offers = List.of(
+                        buildOffer(customerId, new BigDecimal("1500000.00"), 60, new BigDecimal("75.0"), new BigDecimal("0.3")),
+                        buildOffer(customerId, new BigDecimal("2000000.00"), 36, new BigDecimal("80.5"), new BigDecimal("0.35")),
+                        buildOffer(customerId, new BigDecimal("1200000.00"), 24, new BigDecimal("65.5"), new BigDecimal("0.25")),
+                        buildOffer(customerId, new BigDecimal("2500000.00"), 48, new BigDecimal("89.9"), new BigDecimal("0.4"))
+                );
+                loanOfferRepository.saveAll(offers);
+                System.out.println("✅ Ofertas de demo insertadas para facuvega-001.");
+            }
+        };
+    }
+
+    private static LoanOfferEntity buildOffer(
+            String customerId, BigDecimal maxAmount, int maxQuotas, BigDecimal monthlyRate, BigDecimal minDti) {
+        LoanOfferEntity offer = new LoanOfferEntity();
+        offer.setId(UUID.randomUUID());
+        offer.setCustomerId(customerId);
+        offer.setMaxAmount(maxAmount);
+        offer.setMaxQuotas(maxQuotas);
+        offer.setMonthlyRate(monthlyRate);
+        offer.setMinDTI(minDti);
+        return offer;
     }
 }

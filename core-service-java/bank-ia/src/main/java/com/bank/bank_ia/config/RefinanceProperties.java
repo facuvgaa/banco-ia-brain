@@ -43,4 +43,17 @@ public class RefinanceProperties {
      * Monto mínimo para refinanciación.
      */
     private BigDecimal minRefinanceAmount = new BigDecimal("100000.00");
+
+    /**
+     * Cuotas pagas mínimas (sistema francés) para poder refinanciar un préstamo activo.
+     */
+    private int minPaidQuotasForRefinance = 6;
+
+    /**
+     * Regla de negocio: refinanciar solo si ya se pagó al menos {@link #minPaidQuotasForRefinance} cuotas.
+     */
+    public boolean isPaidQuotasSufficientForRefinance(Integer paidQuotas) {
+        int p = paidQuotas == null ? 0 : paidQuotas;
+        return p >= minPaidQuotasForRefinance;
+    }
 }

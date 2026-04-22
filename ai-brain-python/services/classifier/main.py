@@ -2,7 +2,7 @@ import asyncio
 import logging
 from common.kafka_config import get_consumer
 from common.redis_config import get_redis
-from logic import get_classification
+from services.classifier.logic import get_classification
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,18 +21,21 @@ async def run_classifier():
             customer_id = data.get('customerId')
             content = data.get('contenido')
 
+            # Sin sesión: Haiku + guardar ruta. Con sesión: misma vía (sin reclasificar).
+            # Forzar reclasificar: `DEL session:<customerId>`.
             session_key = f"session:{customer_id}"
-            target_stream = await redis.get(session_key)
+            cached = await redis.get(session_key)
 
-            if target_stream:
-                target_stream = target_stream.decode()
-                logger.info(f"📥 De: {customer_id} -> Sesión activa: {target_stream}")
+            if cached:
+                target_stream = cached.decode()
+                logger.info(f"📥 De: {customer_id} -> sesión: {target_stream}")
             else:
                 target_stream = get_classification(content)
                 await redis.set(session_key, target_stream, ex=1800)
-                logger.info(f"📥 De: {customer_id} -> Clasificado: {target_stream}")
+                logger.info(f"📥 De: {customer_id} -> Haiku: {target_stream}")
 
-            await redis.xadd(target_stream, data)
+            fields = {k: str(v) if v is not None else "" for k, v in data.items()}
+            await redis.xadd(target_stream, fields)
             
     except Exception as e:
         logger.error(f"Error en el loop del clasificador: {e}")

@@ -16,6 +16,7 @@ public interface RefinanceResetService {
     record ResetResult(
         int restoredLoans,
         int deletedRefinanceLoans,
+        int deletedNewLoans,
         int createdOffers
     ) {}
 }

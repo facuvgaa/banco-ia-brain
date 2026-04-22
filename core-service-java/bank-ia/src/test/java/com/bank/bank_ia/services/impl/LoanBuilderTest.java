@@ -60,6 +60,7 @@ class LoanBuilderTest {
         assertThat(loan.getStartDate()).isNotNull();
         assertThat(loan.getStartDate()).isBeforeOrEqualTo(LocalDateTime.now());
         assertThat(loan.isEligibleForRefinance()).isFalse();
+        assertThat(loan.getNominalAnnualRate()).isEqualByComparingTo(new BigDecimal("75.0"));
     }
 
     @Test

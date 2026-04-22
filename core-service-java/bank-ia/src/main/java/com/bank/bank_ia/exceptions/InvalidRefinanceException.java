@@ -40,4 +40,11 @@ public class InvalidRefinanceException extends BusinessException {
             )
         );
     }
+
+    public static InvalidRefinanceException insufficientPaidQuotas(int minPaidQuotas) {
+        return new InvalidRefinanceException(
+                String.format(
+                        "Solo se puede refinanciar si el préstamo tiene al menos %d cuotas pagas (sistema francés).",
+                        minPaidQuotas));
+    }
 }

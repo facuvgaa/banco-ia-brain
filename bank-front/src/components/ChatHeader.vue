@@ -1,5 +1,5 @@
 <template>
-  <header class="p-4 border-b border-emerald-500/20 bg-zinc-900/50 backdrop-blur-md flex justify-between items-center sticky top-0 z-10">
+  <header class="shrink-0 p-4 border-b border-emerald-500/20 bg-zinc-900/50 backdrop-blur-md flex justify-between items-center z-10">
     <div class="flex items-center gap-3">
       <div class="relative">
         <div class="w-3 h-3 bg-emerald-500 rounded-full"></div>

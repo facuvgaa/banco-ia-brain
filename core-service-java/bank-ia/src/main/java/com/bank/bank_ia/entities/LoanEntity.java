@@ -51,4 +51,7 @@ public class LoanEntity {
     
     @Column(nullable = false)
     private boolean isEligibleForRefinance;
+
+    @Column(name = "nominal_annual_rate")
+    private BigDecimal nominalAnnualRate;
 }

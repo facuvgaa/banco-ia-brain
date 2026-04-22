@@ -1,10 +1,10 @@
 from functools import partial
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-from llms.models import get_bedrock_model_brain
-from workflows.loans.state import LoanState
-from workflows.loans.tools import DESTRUCTIVE_TOOLS, DESTRUCTIVE_TOOL_NAMES
-from workflows.loans.nodes import load_data_node, agent_node, confirmation_node
+from services.llms.models import get_bedrock_model_brain
+from services.brain.workflows.loans.state import LoanState
+from services.brain.workflows.loans.tools import DESTRUCTIVE_TOOLS, DESTRUCTIVE_TOOL_NAMES
+from services.brain.workflows.loans.nodes import load_data_node, agent_node, confirmation_node
 
 
 def route_after_agent(state: LoanState) -> str:

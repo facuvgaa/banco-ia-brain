@@ -66,20 +66,22 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
 
         // 3. Validar que el monto solicitado esté dentro del rango de la oferta (totalDebt <= offeredAmount <= maxAmount)
         LoanOfferEntity matchingOffer = refinanceValidator.validateAndGetMatchingOffer(request, offers, totalDebt);
-        BigDecimal resolvedAmount = matchingOffer.getMaxAmount();
+        // Monto acordado = el solicitado (ya validado: deuda total ≤ monto ≤ tope de oferta)
+        BigDecimal resolvedAmount = request.offeredAmount();
 
         // 4. Eliminar ofertas del cliente
         deleteCustomerOffers(request.customerId());
 
-        // 5. Calcular cash out con el monto de la oferta en BD (fuente de verdad)
+        // 5. Efectivo en mano = monto del nuevo préstamo − deuda cancelada
         BigDecimal cashOut = resolvedAmount.subtract(totalDebt);
-        log.info("Deuda total a cancelar: {}, Monto oferta (BD): {}, Cash out: {}", totalDebt, resolvedAmount, cashOut);
+        log.info("Deuda total a cancelar: {}, Monto ofrecido: {}, Cash out: {}", totalDebt, resolvedAmount, cashOut);
 
         // 6. Cerrar préstamos antiguos
         closeOldLoans(oldLoans);
 
         // 7. Crear nuevo préstamo con el monto resuelto de la oferta
-        LoanEntity newLoan = loanBuilder.buildRefinanceLoan(request, resolvedAmount);
+        LoanEntity newLoan = loanBuilder.buildRefinanceLoan(
+                request, resolvedAmount, matchingOffer.getMonthlyRate());
         if (newLoan == null) {
             log.error("Error al crear el nuevo préstamo de refinanciación.");
             return null;
@@ -96,7 +98,8 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
             newLoan.getId(),
             newLoan.getLoanNumber(),
             totalDebt,
-            cashOut
+            cashOut,
+            matchingOffer.getMonthlyRate()
         );
     }
     

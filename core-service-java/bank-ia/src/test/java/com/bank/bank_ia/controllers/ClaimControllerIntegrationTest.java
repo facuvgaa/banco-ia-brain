@@ -214,7 +214,7 @@ class ClaimControllerIntegrationTest {
         loan.setTotalAmount(remainingAmount.multiply(new BigDecimal("2")));
         loan.setRemainingAmount(remainingAmount);
         loan.setQuotaAmount(new BigDecimal("10000.00"));
-        loan.setPaidQuotas(0);
+        loan.setPaidQuotas(6);
         loan.setTotalQuotas(10);
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());

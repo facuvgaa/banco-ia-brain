@@ -28,13 +28,17 @@ public class LoanBuilder {
      * Crea un nuevo préstamo de refinanciación basado en la operación.
      */
     public LoanEntity buildRefinanceLoan(RefinanceOperationDTO request) {
-        return buildRefinanceLoan(request, request.offeredAmount());
+        return buildRefinanceLoan(
+                request, request.offeredAmount(), request.appliedRate());
     }
 
     /**
      * Crea un nuevo préstamo de refinanciación usando el monto resuelto (ej. desde la oferta en BD).
+     *
+     * @param nominalAnnualRate TNA % aplicada a la oferta aceptada.
      */
-    public LoanEntity buildRefinanceLoan(RefinanceOperationDTO request, BigDecimal offeredAmount) {
+    public LoanEntity buildRefinanceLoan(
+            RefinanceOperationDTO request, BigDecimal offeredAmount, BigDecimal nominalAnnualRate) {
         LoanEntity loan = new LoanEntity();
         loan.setId(UUID.randomUUID());
         loan.setCustomerId(request.customerId());
@@ -47,6 +51,7 @@ public class LoanBuilder {
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());
         loan.setEligibleForRefinance(false);
+        loan.setNominalAnnualRate(nominalAnnualRate);
 
         return loan;
     }
@@ -55,7 +60,7 @@ public class LoanBuilder {
      * Crea un nuevo préstamo (no refinanciación) para la misma tabla de préstamos (loads).
      * Se usa cuando el cliente toma una oferta de nuevo préstamo.
      */
-    public LoanEntity buildNewLoan(String customerId, BigDecimal amount, Integer quotas) {
+    public LoanEntity buildNewLoan(String customerId, BigDecimal amount, Integer quotas, BigDecimal nominalAnnualRate) {
         LoanEntity loan = new LoanEntity();
         loan.setId(UUID.randomUUID());
         loan.setCustomerId(customerId);
@@ -68,6 +73,7 @@ public class LoanBuilder {
         loan.setStatus(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());
         loan.setEligibleForRefinance(false);
+        loan.setNominalAnnualRate(nominalAnnualRate);
         return loan;
     }
 
