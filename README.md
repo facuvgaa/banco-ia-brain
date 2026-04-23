@@ -1,10 +1,10 @@
 # Proyecto Moustro (Banco Moustro)
 
-**Repositorio:** [github.com/facuvgaa/banco-ia-brain](https://github.com/facuvgaa/banco-ia-brain)
+**Banco Moustro** es una demo de banca con **agente conversacional** de punta a punta: el usuario habla desde el navegador y, detrás, un **backend Java con Spring Boot** concentra la API de producto (préstamos, refinanciación, perfil inversor, reclamos) mientras la capa de IA —en **Python**, con **LangGraph** y orquestación por **Kafka**— encadena el razonamiento sin bloquear el hilo de negocio. La arquitectura es **orientada a eventos**: los mensajes viajan por streams, los servicios reaccionan de forma **asíncrona** y el sistema escala en ideas de *workers* y consumidores, no de un monolito gigante.
 
-Demo de banca con asistente conversacional: el usuario chatea desde el navegador, el backend orquesta el flujo con **Kafka** (arquitectura **orientada a eventos**), servicios **Python** asíncronos con **LangGraph** y modelos en **AWS Bedrock**, y un **core Java (Spring Boot)** expone la API REST de productos (préstamos, refinanciación, perfil inversor, etc.).
+Sobre **AWS Bedrock** se apoya en **Anthropic Claude** con un reparto claro: **Claude Haiku** hace el trabajo **liviano y veloz** —triaje, clasificación de intención, ruteo hacia el módulo que corresponde—; **Claude Sonnet** se reserva para lo **exigente**: razonar con contexto, usar herramientas, armar explicaciones de préstamos o inversiones con la profundidad que el cliente merece. Así se optimizan **latencia y costo** sin sacrificar calidad cuando el trámite lo pide.
 
-El diseño prioriza **código asincrónico** y **colas/streams** desacoplados, de forma que en el futuro se pueda **desplegar en Kubernetes** (múltiples réplicas, autoscaling por consumidor, service mesh opcional) sin reescribir el núcleo del flujo: hoy `docker compose` levanta el mismo reparto de procesos que podrían ser Pods con los mismos binarios e imágenes.
+El diseño apuesta a **código asíncrono** y a **colas/streams** desacoplados: hoy levantás todo con **`docker compose`**, mañana el mismo desglose de procesos se mapea sin drama a **Kubernetes** (réplicas, autoscaling por servicio, service mesh si el equipo lo pide) porque el contrato son eventos y APIs, no acoplamiento fijo entre procesos.
 
 ---
 
@@ -28,6 +28,26 @@ El diseño prioriza **código asincrónico** y **colas/streams** desacoplados, d
 - Los servicios Python usan **asyncio** (clientes no bloqueantes, `async/await`) y se enganchan a Kafka con bucles de consumo adecuados a streaming.
 - El **front no acopla** a un único monolito de IA: cada pieza reacciona a **eventos** (nuevo mensaje de usuario, mensaje hacia un workflow, salida hacia el front vía mecanismos del core).
 - Ese desacoplamiento es lo que hace razonable un salto a **K8s**: colas o streams como contrato, servicios con procesos o workers horizontales, y Redis/Kafka/Postgres como backing services gestionados o operadores.
+
+### Memoria en Redis (corto plazo) y PostgreSQL (persistencia)
+
+En este proyecto **no hay un único “chip de memoria”**: se combina **Redis** para el **trabajo en curso** y **PostgreSQL** para cosas **duraderas** y consultables después.
+
+**Redis — memoria operativa / corto plazo**
+
+- **Checkpoints de LangGraph** (`AsyncRedisSaver`): el estado del grafo (mensajes del hilo, pasos) se guarda asociado al `thread_id` (típicamente el `customer_id`). Sirve para **seguir la misma conversación** en varios turnos sin reenviar todo el historial “a mano”. Es **rápido** y **volátil en la práctica**: depende de políticas de Redis, TTL de otras claves y limpieza; no está pensado como archivo legal de la charla.
+- **`session:{customerId}`** (TTL ~30 min): indica a qué stream de Kafka debe ir el **siguiente** mensaje del usuario (p. ej. `to-brain` tras una derivación).
+- **`brain_workflow:{customerId}`** (TTL alineado al clasificador, p. ej. 30 min): recuerda **qué workflow del brain** está activo (`workflow_loans` / `workflow_investment`) para no reclasificar en cada tecla.
+- **`post_close:{customerId}`** (TTL ~15 min): flag tras un cierre tipo “¿algo más?” para que el clasificador pueda **resetear sesión** en el mensaje siguiente sin arrastrar el módulo anterior.
+
+En conjunto, Redis actúa como **memoria de trabajo** del pipeline: barata en latencia, con **expiración** y orientada a **sesión activa**.
+
+**PostgreSQL — memoria durable / largo plazo (tres lecturas útiles)**
+
+1. **`conversation-db` (puerto 5433 en local)** — tabla `conversations` (`common/conversation_store.py`): tras un turno en **master** o en un **workflow**, se puede **insertar** un registro con `customer_id`, `service` (p. ej. `master`, `loans`, `investment`) y un **JSONB** de mensajes simplificados (rol + contenido). Es un **historial guardado** para auditoría, analítica o futuras integraciones; **no** reemplaza al checkpointer de LangGraph para reanudar el grafo en caliente (eso sigue en Redis mientras exista el checkpoint).
+2. **`banco-db` (puerto 5432)** — datos de **negocio** del core Java: préstamos, ofertas, operaciones de refinanciación, **perfil inversor**, etc. Es la “memoria larga” del **cliente como entidad bancaria**, no del texto del chat.
+
+**Resumen:** Redis = **contexto vivo** del flujo de IA y del enrutado (segundos/minutos, con TTL). PostgreSQL = **persistencia relacional**: historial de conversación en un esquema dedicado y **estado de producto** en el esquema del banco. *(Nota: “PostgREST” es otro producto; aquí se usa el cliente/servidor **PostgreSQL** estándar.)*
 
 ---
 
@@ -71,7 +91,33 @@ Copiá **`.env.example`** a **`.env`** y completá los valores. **No subas `.env
 - Cuenta **AWS** con **Amazon Bedrock** habilitado y credenciales IAM mínimas para invocar los modelos configurados
 - Archivo **`.env`** a partir de **`.env.example`**
 
+## Clonar el repositorio
+
+Asegurate de tener [Git](https://git-scm.com/) instalado. En la terminal:
+
+```bash
+git clone https://github.com/facuvgaa/banco-ia-brain.git
+cd banco-ia-brain
+```
+
+Si usás **SSH** (clave cargada en GitHub):
+
+```bash
+git clone git@github.com:facuvgaa/banco-ia-brain.git
+cd banco-ia-brain
+```
+
+Para **actualizar** el código más adelante, desde la carpeta del proyecto:
+
+```bash
+git pull origin main
+```
+
+(El branch por defecto puede ser `main`; ajustá si tu remoto usa otro nombre.)
+
 ## Cómo levantar el entorno
+
+Desde la **raíz del repositorio** (donde está `docker-compose.yml`):
 
 ```bash
 cp .env.example .env
