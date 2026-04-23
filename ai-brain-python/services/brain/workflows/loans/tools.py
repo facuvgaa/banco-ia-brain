@@ -53,11 +53,43 @@ def fetch_available_offers(customer_id: str) -> list:
 @tool
 def create_new_loan(customer_id: str, amount: float, quotas: int, rate: float) -> dict:
     """Crea un nuevo préstamo para el cliente con el monto, cuotas y tasa indicados."""
-    response = httpx.post(
-        f"{CORE_API}/new-loan/{customer_id}",
-        json={"amount": amount, "quotas": quotas, "rate": rate}
+    try:
+        response = httpx.post(
+            f"{CORE_API}/new-loan/{customer_id}",
+            json={"amount": amount, "quotas": quotas, "rate": rate},
+            timeout=60.0,
+        )
+        body = response.json()
+    except Exception as e:
+        return {"ok": False, "error": "http", "message": str(e)}
+
+    if not response.is_success:
+        return {
+            "ok": False,
+            "status_code": response.status_code,
+            "detail": body,
+            "message": _new_loan_error_message(body, response),
+        }
+    if isinstance(body, dict) and body.get("success") and body.get("data") is not None:
+        d = body["data"]
+        return {
+            "ok": True,
+            "amount": d.get("amount") or d.get("totalAmount"),
+            "quotas": d.get("quotas") or d.get("totalQuotas"),
+            "rate": d.get("rate"),
+        }
+    return {"ok": True, "raw": body}
+
+
+def _new_loan_error_message(body, response) -> str:
+    if isinstance(body, dict):
+        m = body.get("message") or body.get("error")
+        if m:
+            return str(m)
+    return (
+        f"Error HTTP {response.status_code} al crear préstamo. Si acabás de refinanciar y falla, "
+        "revisá que haya una oferta que coincida (monto ≤ tope, cuotas y TNA exactos del catálogo)."
     )
-    return response.json()
 
 
 @tool

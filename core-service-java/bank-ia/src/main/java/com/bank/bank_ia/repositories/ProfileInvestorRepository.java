@@ -9,4 +9,6 @@ import com.bank.bank_ia.entities.ProfileInvestorEntity;
 
 public interface ProfileInvestorRepository extends JpaRepository<ProfileInvestorEntity, UUID> {
     Optional<ProfileInvestorEntity> findByCustomerId(String customerId);
+
+    void deleteByCustomerId(String customerId);
 }

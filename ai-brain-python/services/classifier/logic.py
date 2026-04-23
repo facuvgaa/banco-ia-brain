@@ -8,8 +8,22 @@ model = get_bedrock_model_master()
 
 logger = logging.getLogger(__name__)
 
+# Evita que Haiku mande a master consultas de inversión (el módulo con test vive en to-brain).
+_INVESTMENT_TO_BRAIN = re.compile(
+    r"(\binversiones?\b|\binversión\b|\binvertir\b|perfil inversor|test de idoneidad|idoneidad|"
+    r"mercado de capitales|fci|cedear|dónde invertir|donde invertir|mep|bonos?|letras del tesoro|"
+    r"armar cartera|activos financieros|fondo común|módulo de inversion|riesgo de inversión|"
+    r"ahora inversi|tema inversi)",
+    re.I,
+)
+
 
 def get_classification(message_content: str) -> str:
+    text = (message_content or "").strip()
+    if _INVESTMENT_TO_BRAIN.search(text):
+        logger.info("[classifier] Heurística inversión -> to-brain")
+        return "to-brain"
+
     formatted_prompt = PROMPT_CLS.format(message_content=message_content)
 
     try:

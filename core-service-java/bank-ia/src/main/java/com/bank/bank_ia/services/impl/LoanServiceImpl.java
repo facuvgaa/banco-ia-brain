@@ -9,6 +9,7 @@ import com.bank.bank_ia.dto.LoanDTO;
 import com.bank.bank_ia.enums.LoanStatus;
 import com.bank.bank_ia.repositories.LoanRepository;
 import com.bank.bank_ia.services.LoanService;
+import com.bank.bank_ia.services.RefinanceResetService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,9 +19,11 @@ import lombok.RequiredArgsConstructor;
 public class LoanServiceImpl implements LoanService {
     private final LoanRepository loanRepository;
     private final RefinanceProperties refinanceProperties;
+    private final RefinanceResetService refinanceResetService;
 
     @Override
     public List<LoanDTO> getLoansByCustomerId(String customerId) {
+        refinanceResetService.ensureFacuDemoLoansIfApplicable(customerId);
         return loanRepository.findAllByCustomerId(customerId)
         .stream()
         .map(entity -> {

@@ -3,6 +3,7 @@ package com.bank.bank_ia.services.impl;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bank.bank_ia.dto.ProfileInvestorDTO;
 import com.bank.bank_ia.entities.ProfileInvestorEntity;
@@ -45,5 +46,11 @@ public class ProfileInvestorServiceImpl implements ProfileInvestorService {
             saved.getMaxLossPercent(),
             saved.getHorizon()
         );
+    }
+
+    @Override
+    @Transactional
+    public void deleteByCustomerId(String customerId) {
+        profileInvestorRepository.deleteByCustomerId(customerId);
     }
 }

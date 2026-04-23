@@ -170,6 +170,31 @@ services:
       POSTGRES_CONVERSATION_URL: postgresql://admin:password@postgres_conversation:5432/banco_db
       CORE_API_URL: http://core-service:8080/api/v1/bank-ia
     depends_on:
+      backend:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres_conversation:
+        condition: service_healthy
+    restart: on-failure
+
+  workflow-investment:
+    build:
+      context: ./ai-brain-python
+      dockerfile: Dockerfile
+    container_name: moustro-workflow-investment
+    command: ["python", "-m", "services.brain.workflows.investment.main"]
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+      REDIS_URL: redis://redis:6379
+      POSTGRES_CONVERSATION_URL: postgresql://admin:password@postgres_conversation:5432/banco_db
+      CORE_API_URL: http://core-service:8080/api/v1/bank-ia
+    depends_on:
+      backend:
+        condition: service_started
       kafka:
         condition: service_healthy
       redis:

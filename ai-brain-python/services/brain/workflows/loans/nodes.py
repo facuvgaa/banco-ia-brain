@@ -11,6 +11,7 @@ from services.brain.workflows.loans.tools import (
     DESTRUCTIVE_TOOL_NAMES,
 )
 from services.brain.workflows.loans.prompt import SYSTEM_PROMPT_LOANS
+from services.brain.workflows.loans.loan_payload import enrich_loans_list, enrich_offers_list
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,9 @@ def load_data_node(state: LoanState) -> dict:
     customer_id = state["customer_id"]
     logger.info(f"[loans] Cargando datos para cliente {customer_id}")
 
-    loans = fetch_customer_loans(customer_id)
-    refinanceable = fetch_refinanceable_loans(customer_id)
-    offers = fetch_available_offers(customer_id)
+    loans = enrich_loans_list(fetch_customer_loans(customer_id))
+    refinanceable = enrich_loans_list(fetch_refinanceable_loans(customer_id))
+    offers = enrich_offers_list(fetch_available_offers(customer_id))
 
     return {
         "loans": loans,

@@ -79,6 +79,7 @@ async def run_master():
                         respuesta = _text_from_message_content(raw)
 
                         if "[DERIVAR]" in respuesta:
+                            await redis.delete(f"brain_workflow:{customer_id}")
                             await redis.set(
                                 f"session:{customer_id}", "to-brain", ex=1800
                             )

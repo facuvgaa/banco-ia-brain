@@ -9,7 +9,6 @@ from services.classifier.post_close_logic import get_post_close_route
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Respuesta mínima si el usuario cierra luego de “¿algo más?”.
 POST_CLOSE_FAREWELL = (
     "Dale, cuando quieras. ¡Gracias por charlar y que tengas un buen día!"
 )
@@ -38,14 +37,14 @@ async def run_classifier():
                 await redis.delete(post_close_key)
                 if action == "close":
                     await redis.delete(session_key)
+                    await redis.delete(f"brain_workflow:{customer_id}")
                     await send_chat_response(producer, customer_id, POST_CLOSE_FAREWELL)
                     logger.info("📤 post_close → CERRAR %s (sin reenvío)", customer_id)
                     continue
                 await redis.delete(session_key)
+                await redis.delete(f"brain_workflow:{customer_id}")
                 logger.info("📤 post_close → NUEVO tema %s (reclasificando)", customer_id)
 
-            # Sin sesión: Haiku + guardar ruta. Con sesión: misma vía (sin reclasificar).
-            # Forzar reclasificar: `DEL session:<customerId>`.
             cached = await redis.get(session_key)
 
             if cached:
@@ -53,6 +52,8 @@ async def run_classifier():
                 logger.info("📥 De: %s -> sesión: %s", customer_id, target_stream)
             else:
                 target_stream = get_classification(content)
+                if target_stream == "to-brain":
+                    await redis.delete(f"brain_workflow:{customer_id}")
                 await redis.set(session_key, target_stream, ex=1800)
                 logger.info("📥 De: %s -> Haiku: %s", customer_id, target_stream)
 

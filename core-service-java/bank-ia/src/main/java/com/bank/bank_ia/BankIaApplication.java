@@ -290,10 +290,10 @@ public class BankIaApplication {
                     t.setStatus(LoanStatus.ACTIVE);
                     t.setStartDate(LocalDateTime.now().minusMonths(6));
                     t.setEligibleForRefinance(true);
-                    t.setNominalAnnualRate(new BigDecimal("80.0"));
+                    t.setNominalAnnualRate(new BigDecimal("110.0"));
                     loanRepository.save(t);
                 }
-                System.out.println("✅ Préstamos de demo insertados para facuvega-001 (2×$500k, TNA 80%, 6/10, refinanciables).");
+                System.out.println("✅ Préstamos de demo insertados para facuvega-001 (2×$500k originales, TNA 110%, 6/10, refinanciables).");
             }
             if (loanOfferRepository.findAllByCustomerId(customerId).isEmpty()) {
                 List<LoanOfferEntity> offers = List.of(

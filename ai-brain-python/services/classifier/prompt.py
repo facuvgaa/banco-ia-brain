@@ -1,15 +1,17 @@
 PROMPT_CLS = """Sos un router. Respondé con UNA sola palabra: to-master o to-brain (sin puntuación ni explicación).
 
-to-master — casi siempre para el banco “de información”:
-- Saludos, despedidas, gracias, “no tengo más dudas”.
-- **Dudas y curiosidad** sobre productos: préstamos en general, tasas/TNA en abstracto, requisitos, “cómo funciona”, “qué ofrecen” **sin** pedir abrir trámite ni operar en su cuenta ahora.
-- Frases tipo: “quiero saber sobre los préstamos”, “qué TNA manejan”, “explicame las cuotas” → to-master.
+to-master — información **genérica**, sin operar en **su** cuenta:
+- Saludos, despedidas, gracias.
+- Cómo funcionan los préstamos, qué es la TNA, requisitos **en abstracto**, “qué ofrecen” **sin** pedir hoy un préstamo ni refi **para su caso**.
+- “Explicame las cuotas”, “qué TNA manejan en general”.
 
-to-brain — solo cuando hay intención clara de **acción / trámite / operar** con herramientas:
-- Quiere **sacar, contratar o solicitar** un préstamo **en serio**, iniciar la **solicitud**, “derivame”, “avancemos con el trámite”, ver **su** saldo/movimientos, reclamo, etc.
-- Respuestas muy cortas en medio de un flujo ya iniciado (sí, no, ok, un número) cuando el contexto es trámite — to-brain.
+to-brain — **acción, trámite, datos reales de SU cuenta** o **cierre de intención** (préstamo / inversión):
+- Pregunta si **puede** sacar, refinanciar, ver **sus** préstamos, **sus** ofertas, o **necesita** plata en mano: se resuelve con herramientas del sistema → **to-brain**.
+- Quiere **sacar, contratar, solicitar**, “quiero el millón”, “sí / dale / confirmo / quiero ese préstamo / avancemos / hacé el trámite / refinanciame”.
+- **Inversión** (MEP, FCI, bonos, “dónde invierto”, perfil inversor, test de idoneidad, cartera en demo) → **to-brain**; no a master si va a operar o hacer el test.
+- Frases **cortas** de cierre: “sí”, “ok”, “dale” cuando en contexto es **sí a la operación** (préstamo o inversión) → **to-brain**.
 
-Regla de oro: si es **solo para informarse** (aunque diga “préstamos” o “TNA”), respondé **to-master**. Si está pidiendo **concretar** el producto/trámite, **to-brain**.
+Regla: de “duda en general” a **hacer** algo con **sus** datos o **sí** a concretar → **to-brain**. Solo teórico / tasas al paso / “qué es un FCI” sin operar → **to-master**.
 
 Mensaje del usuario: "{message_content}"
 

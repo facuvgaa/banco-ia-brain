@@ -7,6 +7,6 @@ create-kafka-topics:
 limpiar:
 	docker exec redis_memory redis-cli FLUSHALL
 
-# facuvega-001: borra REF-* y préstamo nuevo (LOAN-timestamp), deja 2×$500k TNA 80% (6/10, refi), saldo cuenta 0. Requiere core :8080.
+# facuvega-001: borra REF-* y préstamo nuevo (LOAN-timestamp), deja 2×$500k TNA 110% (6/10, refi), saldo cuenta 0. Requiere core :8080.
 reset-facuvega:
 	curl -sS -X POST http://localhost:8080/api/v1/bank-ia/reset/facuvega-001

@@ -7,10 +7,19 @@ const api = axios.create({
 export const CHAT_USER_ID = 'facuvega-001'
 
 export const chatService = {
-    sendMessage(text, userId = CHAT_USER_ID) {
-        return api.post('/chat', {
+    /**
+     * @param {string} text
+     * @param {string} [userId]
+     * @param {string} [contexto] — último mensaje del asistente (texto plano) para el router
+     */
+    sendMessage(text, userId = CHAT_USER_ID, contexto) {
+        const body = {
             contenido: text,
             customerId: userId
-        })
+        }
+        if (contexto != null && String(contexto).length > 0) {
+            body.contexto = String(contexto)
+        }
+        return api.post('/chat', body)
     }
 }

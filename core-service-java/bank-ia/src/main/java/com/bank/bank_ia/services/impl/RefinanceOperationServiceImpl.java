@@ -69,17 +69,17 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
         // Monto acordado = el solicitado (ya validado: deuda total ≤ monto ≤ tope de oferta)
         BigDecimal resolvedAmount = request.offeredAmount();
 
-        // 4. Eliminar ofertas del cliente
-        deleteCustomerOffers(request.customerId());
+        // No eliminamos el catálogo de ofertas: si no, un segundo paso (p. ej. préstamo nuevo) falla
+        // con "no hay ofertas" aunque el refi haya ido bien. En demo se mantienen las filas.
 
-        // 5. Efectivo en mano = monto del nuevo préstamo − deuda cancelada
+        // 4. Efectivo en mano = monto del nuevo préstamo − deuda cancelada
         BigDecimal cashOut = resolvedAmount.subtract(totalDebt);
         log.info("Deuda total a cancelar: {}, Monto ofrecido: {}, Cash out: {}", totalDebt, resolvedAmount, cashOut);
 
-        // 6. Cerrar préstamos antiguos
+        // 5. Cerrar préstamos antiguos
         closeOldLoans(oldLoans);
 
-        // 7. Crear nuevo préstamo con el monto resuelto de la oferta
+        // 6. Crear nuevo préstamo con el monto resuelto de la oferta
         LoanEntity newLoan = loanBuilder.buildRefinanceLoan(
                 request, resolvedAmount, matchingOffer.getMonthlyRate());
         if (newLoan == null) {
@@ -88,7 +88,7 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
         }
         loanRepository.save(newLoan);
 
-        // 8. Acreditar cash out a la cuenta
+        // 7. Acreditar cash out a la cuenta
         creditCashOut(request.customerId(), cashOut, newLoan.getLoanNumber());
 
         log.info("Refinanciación completada con éxito. Sobrante acreditado: {}", cashOut);
@@ -101,14 +101,6 @@ public class RefinanceOperationServiceImpl implements RefinanceOperationService 
             cashOut,
             matchingOffer.getMonthlyRate()
         );
-    }
-    
-    private void deleteCustomerOffers(String customerId) {
-        List<LoanOfferEntity> offers = loanOfferRepository.findAllByCustomerId(customerId);
-        if (!offers.isEmpty()) {
-            loanOfferRepository.deleteAll(offers);
-            log.info("Eliminadas {} ofertas de préstamo para el cliente: {}", offers.size(), customerId);
-        }
     }
     
     private List<LoanEntity> findAndValidateLoans(RefinanceOperationDTO request) {

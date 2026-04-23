@@ -13,7 +13,7 @@ const wsError = ref(false)
 const messages = ref([
   {
     id: 1,
-    text: '¡Hola perro! Sistema Moustro_Bank activo. ¿Qué consulta tenés?',
+    text: '¡Hola! Soy rice agente del Moustro_Bank activo. ¿Qué consulta tenés?',
     sender: 'ai',
     mdReady: true,
   },
@@ -47,7 +47,6 @@ const buildWebSocketUrl = () => {
   return `${ws}/chat/ws?customerId=${encodeURIComponent(CHAT_USER_ID)}`
 }
 
-/** Si no baja a 0, el evento `reply` no llegó por WebSocket (o el pipeline no publicó a chat-response). */
 const REPLY_TIMEOUT_MS = 120_000
 let replyWaitTimer = null
 
@@ -189,12 +188,17 @@ const handleSendMessage = async () => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return
 
   const userText = newMessage.value
+  const lastAi = [...messages.value]
+    .reverse()
+    .find((m) => m.sender === 'ai')
+  const contexto = lastAi?.text ? String(lastAi.text).slice(0, 12000) : undefined
+
   messages.value.push({ id: Date.now(), text: userText, sender: 'user' })
   newMessage.value = ''
   pendingReplies.value++
 
   try {
-    await chatService.sendMessage(userText)
+    await chatService.sendMessage(userText, CHAT_USER_ID, contexto)
     scheduleReplyWait()
   } catch (error) {
     if (pendingReplies.value > 0) pendingReplies.value--
@@ -202,7 +206,7 @@ const handleSendMessage = async () => {
     console.error('Error conectando con el cluster:', error)
     messages.value.push({
       id: Date.now(),
-      text: 'Error de conexión. ¿Levantaste el backend de Java, facha?',
+      text: 'Error de conexión',
       sender: 'ai',
       mdReady: true,
     })
@@ -266,7 +270,7 @@ const handleSendMessage = async () => {
             <div class="h-3 w-3 rounded-full bg-moustro-green"></div>
             <span
               class="text-[10px] font-mono uppercase tracking-widest italic text-zinc-500"
-              >Pensando… (hasta 2 min: Bedrock + Redis + Kafka; la respuesta vuelve por WebSocket)</span
+              >Pensando…</span
             >
           </div>
         </div>

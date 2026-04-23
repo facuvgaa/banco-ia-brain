@@ -10,4 +10,5 @@ public interface ProfileInvestorService {
 
     ProfileInvestorDTO createOrUpdateProfile(String customerId, ProfileInvestorDTO dto);
 
+    void deleteByCustomerId(String customerId);
 }

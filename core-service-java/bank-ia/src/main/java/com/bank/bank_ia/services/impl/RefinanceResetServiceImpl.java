@@ -44,6 +44,12 @@ public class RefinanceResetServiceImpl implements RefinanceResetService {
 
     @Override
     @Transactional
+    public void ensureFacuDemoLoansIfApplicable(String customerId) {
+        syncFacuvegaDemoLoansIfApplicable(customerId);
+    }
+
+    @Override
+    @Transactional
     public ResetResult resetCustomerData(String customerId) {
         log.info("Reseteando datos del cliente: {}", customerId);
 
@@ -165,7 +171,7 @@ public class RefinanceResetServiceImpl implements RefinanceResetService {
         loan.setPaidQuotas(6);
         loan.setTotalQuotas(10);
         loan.setStartDate(LocalDateTime.now().minusMonths(6));
-        loan.setNominalAnnualRate(new BigDecimal("80.0"));
+        loan.setNominalAnnualRate(new BigDecimal("110.0"));
         loan.setEligibleForRefinance(
                 refinanceProperties.isPaidQuotasSufficientForRefinance(6));
     }

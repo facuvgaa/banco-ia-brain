@@ -144,8 +144,8 @@ class RefinanceOperationServiceImplTest {
         assertThat(response.cashOut()).isEqualByComparingTo(new BigDecimal("100000.00"));
         assertThat(response.appliedNominalAnnualRate()).isEqualByComparingTo(new BigDecimal("75.0"));
 
-        verify(loanOfferRepository, times(2)).findAllByCustomerId(customerId);
-        verify(loanOfferRepository).deleteAll(offers);
+        verify(loanOfferRepository, times(1)).findAllByCustomerId(customerId);
+        verify(loanOfferRepository, never()).deleteAll(anyList());
         verify(loanRepository).findAllByIdIn(request.sourceLoanIds());
         verify(refinanceValidator).validate(request, oldLoans);
         verify(refinanceValidator).validateAndGetMatchingOffer(eq(request), eq(offers), eq(new BigDecimal("400000.00")));
@@ -158,8 +158,8 @@ class RefinanceOperationServiceImplTest {
     }
 
     @Test
-    @DisplayName("Debería eliminar ofertas del cliente antes de refinanciar")
-    void shouldDeleteCustomerOffers() {
+    @DisplayName("No debería borrar el catálogo de ofertas (permite un préstamo nuevo después del refi)")
+    void shouldNotDeleteCustomerOffers() {
         // Given
         LoanOfferEntity matchingOffer = createMatchingOffer();
         List<LoanOfferEntity> offers = List.of(matchingOffer, new LoanOfferEntity());
@@ -177,7 +177,7 @@ class RefinanceOperationServiceImplTest {
         service.executeRefinance(request);
 
         // Then
-        verify(loanOfferRepository).deleteAll(offers);
+        verify(loanOfferRepository, never()).deleteAll(anyList());
     }
 
     @Test

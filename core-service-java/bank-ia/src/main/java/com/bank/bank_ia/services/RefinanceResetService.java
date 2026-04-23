@@ -12,7 +12,12 @@ public interface RefinanceResetService {
      * @return Resumen de la operación de reset
      */
     ResetResult resetCustomerData(String customerId);
-    
+
+    /**
+     * Repone en DB el estado demo de FACU-001 / FACU-002 para el cliente de chat (evita drift).
+     */
+    void ensureFacuDemoLoansIfApplicable(String customerId);
+
     record ResetResult(
         int restoredLoans,
         int deletedRefinanceLoans,

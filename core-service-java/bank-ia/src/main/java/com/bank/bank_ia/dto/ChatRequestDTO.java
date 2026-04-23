@@ -6,7 +6,9 @@ import lombok.Data;
 @Data
 public class ChatRequestDTO {
     private String contenido;
-    
+
+    private String contexto;
+
     @NotNull
     private String customerId;
 }
